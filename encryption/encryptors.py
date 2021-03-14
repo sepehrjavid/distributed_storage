@@ -1,5 +1,7 @@
 import hashlib
 import pickle
+import threading
+
 import rsa
 
 from cryptography.fernet import Fernet
@@ -8,6 +10,8 @@ from encryption.exceptions import KeyHashMismatchException
 
 
 class RSAEncryption:
+    lock = threading.Lock()
+
     def __init__(self, fernet):
         self.fernet = fernet
 
@@ -41,13 +45,14 @@ class RSAEncryption:
         if hashlib.sha256(sym_key).hexdigest() != sym_key_sha256:
             raise KeyHashMismatchException()
         else:
-            asymmetric_key = pickle.loads(rsa.decrypt(sym_key, private_key))
+            sym_key = pickle.loads(rsa.decrypt(sym_key, private_key))
 
         fernet = Fernet(sym_key)
         return RSAEncryption(fernet)
 
     def decrypt(self, encrypted_data):
-        return self.fernet.decrypt(encrypted_data).decode()
+        print(len(encrypted_data))
+        return self.fernet.decrypt(encrypted_data)
 
     def encrypt(self, raw_data):
-        return self.fernet.encrypt(raw_data.encode())
+        return self.fernet.encrypt(raw_data)
