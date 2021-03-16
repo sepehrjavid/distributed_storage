@@ -7,8 +7,7 @@ from session.sessions import FileSession
 
 def client():
     session = FileSession("192.168.1.11", 54455)
-    data = 16384 * "g"
-    session.transfer_file("/Users/sepehrjavid/Desktop/qwe.txt")
+    session.transfer_file("/Users/sepehrjavid/Desktop/q.mkv")
     session.end_session()
 
 
@@ -21,7 +20,8 @@ if __name__ == "__main__":
     start = time()
     client_socket, addr = server.accept()
     session = FileSession(input_socket=client_socket, is_server=True)
-    session.receive_file()
+    # print(len(session.encryption_class.encrypt("11111".encode())))
+    session.receive_file("/Users/sepehrjavid/Desktop/sep.mkv")
     thread.join()
     end = time()
     print(end - start)
