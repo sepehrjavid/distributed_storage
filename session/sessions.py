@@ -42,10 +42,11 @@ class SimpleSession:
         with self.receive_lock:
             encrypted_length = self.socket.recv(100)
             data_length = int(self.encryption_class.decrypt(encrypted_length).decode())
+            received_data = self.encryption_class.decrypt(self.socket.recv(data_length))
 
         if decode:
-            return self.encryption_class.decrypt(self.socket.recv(data_length)).decode()
-        return self.encryption_class.decrypt(self.socket.recv(data_length))
+            return received_data.decode()
+        return received_data
 
     def end_session(self):
         self.socket.close()
