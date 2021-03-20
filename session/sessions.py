@@ -59,7 +59,7 @@ class SimpleSession:
 
 class FileSession(SimpleSession):
     THREAD_COUNT = 5
-    SEQUENCE_LENGTH = 4
+    SEQUENCE_LENGTH = 2
     MTU = SimpleSession.MDU - SEQUENCE_LENGTH
 
     def __init__(self, ip_address=None, port_number=None, input_socket=None, is_server=False):
@@ -81,7 +81,9 @@ class FileSession(SimpleSession):
             if not data:
                 break
 
-            result = str(temp).zfill(self.SEQUENCE_LENGTH).encode() + data
+            result = int(temp).to_bytes(byteorder=self.DATA_LENGTH_BYTE_ORDER,
+                                        length=self.DATA_LENGTH_BYTE_NUMBER,
+                                        signed=False) + data
 
             with self.to_transfer_chunks_lock:
                 self.to_transfer_chunks.append(result)
@@ -135,7 +137,10 @@ class FileSession(SimpleSession):
                     break
             except UnpicklingError:
 
-                data = (int(data[:4]), data[4:])
+                data = (int.from_bytes(data[:self.SEQUENCE_LENGTH],
+                                       byteorder=self.DATA_LENGTH_BYTE_ORDER,
+                                       signed=False),
+                        data[self.SEQUENCE_LENGTH:])
 
                 with self.received_chunks_lock:
                     self.received_chunks.append(data)
