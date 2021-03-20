@@ -10,7 +10,8 @@ from encryption.encryptors import RSAEncryption
 
 class SimpleSession:
     MDU = 16384
-    DATA_LENGTH_UNIT = 5
+    DATA_LENGTH_BYTE_NUMBER = 2
+    DATA_LENGTH_BYTE_ORDER = "big"
 
     def __init__(self, ip_address=None, port_number=None, input_socket=None, is_server=False):
         if input_socket:
@@ -32,7 +33,9 @@ class SimpleSession:
             data = data.encode()
 
         encrypted_data = self.encryption_class.encrypt(data)
-        data_length = str(len(encrypted_data)).zfill(self.DATA_LENGTH_UNIT).encode()
+        data_length = int(len(encrypted_data)).to_bytes(byteorder=self.DATA_LENGTH_BYTE_ORDER,
+                                                        length=self.DATA_LENGTH_BYTE_NUMBER,
+                                                        signed=False)
         encrypted_length = self.encryption_class.encrypt(data_length)
 
         with self.transfer_lock:
@@ -41,7 +44,9 @@ class SimpleSession:
     def receive_data(self, decode=True):
         with self.receive_lock:
             encrypted_length = self.socket.recv(100)
-            data_length = int(self.encryption_class.decrypt(encrypted_length).decode())
+            data_length = int.from_bytes(self.encryption_class.decrypt(encrypted_length),
+                                         byteorder=self.DATA_LENGTH_BYTE_ORDER,
+                                         signed=False)
             received_data = self.encryption_class.decrypt(self.socket.recv(data_length))
 
         if decode:
