@@ -2,11 +2,11 @@ import socket
 from threading import Thread
 from time import time, sleep
 
+from meta_data.database import MetaDatabase
 from session.sessions import FileSession
 
 
 def client():
-    pass
     session = FileSession("192.168.1.14", 54455)
     session.transfer_file("/Users/sepehrjavid/Desktop/q.mkv")
     # print(int.from_bytes(sep, byteorder=sys.byteorder, signed=False))
@@ -14,6 +14,8 @@ def client():
 
 
 if __name__ == "__main__":
+    db = MetaDatabase()
+    """
     thread = Thread(target=client, args=[])
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.bind(("192.168.1.14", 54455))
@@ -26,3 +28,4 @@ if __name__ == "__main__":
     thread.join()
     end = time()
     print(end - start)
+    """
