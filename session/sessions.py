@@ -37,6 +37,7 @@ class SimpleSession:
                                                         length=self.DATA_LENGTH_BYTE_NUMBER,
                                                         signed=False)
         encrypted_length = self.encryption_class.encrypt(data_length)
+        print(len(encrypted_length))
 
         with self.transfer_lock:
             self.socket.send(encrypted_length + encrypted_data)
@@ -47,7 +48,11 @@ class SimpleSession:
             data_length = int.from_bytes(self.encryption_class.decrypt(encrypted_length),
                                          byteorder=self.DATA_LENGTH_BYTE_ORDER,
                                          signed=False)
-            received_data = self.encryption_class.decrypt(self.socket.recv(data_length))
+            encrypted_data = self.socket.recv(data_length)
+
+        received_data = self.encryption_class.decrypt(encrypted_data)
+
+        print(received_data)
 
         if decode:
             return received_data.decode()
@@ -101,6 +106,8 @@ class FileSession(SimpleSession):
             if data is None:
                 self.transfer_data(pickle.dumps(None), encode=False)
                 break
+
+            # print(self.to_transfer_chunks)
 
             self.transfer_data(data, encode=False)
 

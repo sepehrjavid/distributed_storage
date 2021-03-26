@@ -29,6 +29,7 @@ class RSAEncryption:
         socket.send(pickle.dumps((encrypted_sym_key, encrypted_sym_key_sha256)))
 
         fernet = Fernet(sym_key)
+        print(sym_key)
         return RSAEncryption(fernet)
 
     @staticmethod
