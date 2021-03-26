@@ -2,7 +2,7 @@ import socket
 from threading import Thread
 from time import time, sleep, gmtime, strftime
 
-from meta_data.data_node import DataNode
+from meta_data.models import DataNode, ChunkMetadata
 from session.sessions import FileSession
 
 
@@ -14,9 +14,12 @@ def client():
 
 
 if __name__ == "__main__":
-    res = DataNode.fetch_all()
+    res = DataNode.fetch_by_id(1)
+    chunk = ChunkMetadata(data_node=res, local_path="sep", chunk_size=64000, sequence=0)
+    chunk.save()
+    print(chunk.id)
 
-    last = res[-1]
+    # last = res[-1]
 
     # thread = Thread(target=client, args=[])
     # server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
