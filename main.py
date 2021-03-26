@@ -23,6 +23,7 @@ if __name__ == "__main__":
     start = time()
     session = FileSession(input_socket=client_socket, is_server=True)
     session.transfer_file("/Users/sepehrjavid/Desktop/q.txt")
+    session.end_session()
     # thread.join()
     # end = time()
     # print(end - start)

@@ -27,17 +27,21 @@ class SimpleSession:
 
         self.transfer_lock = threading.Lock()
         self.receive_lock = threading.Lock()
+        self.encryption_lock = threading.Lock()
 
     def transfer_data(self, data, encode=True):
         if encode:
             data = data.encode()
 
-        encrypted_data = self.encryption_class.encrypt(data)
+        with self.encryption_lock:
+            encrypted_data = self.encryption_class.encrypt(data)
+
         data_length = int(len(encrypted_data)).to_bytes(byteorder=self.DATA_LENGTH_BYTE_ORDER,
                                                         length=self.DATA_LENGTH_BYTE_NUMBER,
                                                         signed=False)
-        encrypted_length = self.encryption_class.encrypt(data_length)
-        print(len(encrypted_length))
+        print(len(encrypted_data))
+        with self.encryption_lock:
+            encrypted_length = self.encryption_class.encrypt(data_length)
 
         with self.transfer_lock:
             self.socket.send(encrypted_length + encrypted_data)
@@ -45,12 +49,14 @@ class SimpleSession:
     def receive_data(self, decode=True):
         with self.receive_lock:
             encrypted_length = self.socket.recv(100)
-            data_length = int.from_bytes(self.encryption_class.decrypt(encrypted_length),
-                                         byteorder=self.DATA_LENGTH_BYTE_ORDER,
-                                         signed=False)
+            with self.encryption_lock:
+                data_length = int.from_bytes(self.encryption_class.decrypt(encrypted_length),
+                                             byteorder=self.DATA_LENGTH_BYTE_ORDER,
+                                             signed=False)
             encrypted_data = self.socket.recv(data_length)
 
-        received_data = self.encryption_class.decrypt(encrypted_data)
+        with self.encryption_lock:
+            received_data = self.encryption_class.decrypt(encrypted_data)
 
         print(received_data)
 
