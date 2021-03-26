@@ -1,8 +1,8 @@
 import socket
 from threading import Thread
-from time import time, sleep
+from time import time, sleep, gmtime, strftime
 
-from meta_data.database import MetaDatabase
+from meta_data.data_node import DataNode
 from session.sessions import FileSession
 
 
@@ -14,18 +14,19 @@ def client():
 
 
 if __name__ == "__main__":
-    db = MetaDatabase()
-    """
-    thread = Thread(target=client, args=[])
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server.bind(("192.168.1.14", 54455))
-    server.listen(5)
-    thread.start()
-    client_socket, addr = server.accept()
-    start = time()
-    session = FileSession(input_socket=client_socket, is_server=True)
-    session.receive_file("/Users/sepehrjavid/Desktop/sep.mkv")
-    thread.join()
-    end = time()
-    print(end - start)
-    """
+    res = DataNode.fetch_all()
+
+    last = res[-1]
+
+    # thread = Thread(target=client, args=[])
+    # server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    # server.bind(("192.168.1.14", 54455))
+    # server.listen(5)
+    # thread.start()
+    # client_socket, addr = server.accept()
+    # start = time()
+    # session = FileSession(input_socket=client_socket, is_server=True)
+    # session.receive_file("/Users/sepehrjavid/Desktop/sep.mkv")
+    # thread.join()
+    # end = time()
+    # print(end - start)
