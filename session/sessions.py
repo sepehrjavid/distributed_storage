@@ -9,7 +9,7 @@ from encryption.encryptors import RSAEncryption
 
 
 class SimpleSession:
-    MDU = 16384
+    MDU = 1500
     DATA_LENGTH_BYTE_NUMBER = 2
     DATA_LENGTH_BYTE_ORDER = "big"
 
@@ -32,8 +32,7 @@ class SimpleSession:
         if encode:
             data = data.encode()
 
-        # encrypted_data = self.encryption_class.encrypt(data)
-        encrypted_data = data
+        encrypted_data = self.encryption_class.encrypt(data)
 
         data_length = int(len(encrypted_data)).to_bytes(byteorder=self.DATA_LENGTH_BYTE_ORDER,
                                                         length=self.DATA_LENGTH_BYTE_NUMBER,
@@ -47,10 +46,14 @@ class SimpleSession:
             data_length = int.from_bytes(data_length,
                                          byteorder=self.DATA_LENGTH_BYTE_ORDER,
                                          signed=False)
-            encrypted_data = self.socket.recv(data_length)
+            bytes_read = 0
+            encrypted_data = b''
+            while bytes_read < data_length:
+                temp_encrypted_data = self.socket.recv(data_length - bytes_read)
+                encrypted_data += temp_encrypted_data
+                bytes_read += len(temp_encrypted_data)
 
-        # received_data = self.encryption_class.decrypt(encrypted_data)
-        received_data = encrypted_data
+        received_data = self.encryption_class.decrypt(encrypted_data)
 
         if decode:
             return received_data.decode()
@@ -133,6 +136,7 @@ class FileSession(SimpleSession):
     def __file_receive_thread(self):
         while True:
             data = self.receive_data(decode=False)
+            print(len(data))
 
             try:
                 eof = pickle.loads(data)
