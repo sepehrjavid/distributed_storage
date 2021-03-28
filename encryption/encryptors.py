@@ -14,6 +14,7 @@ class RSAEncryption:
 
     def __init__(self, fernet):
         self.fernet = fernet
+        self.lock = threading.Lock()
 
     @staticmethod
     def create_server_encryption(socket):
@@ -52,7 +53,9 @@ class RSAEncryption:
         return RSAEncryption(fernet)
 
     def decrypt(self, encrypted_data):
-        return self.fernet.decrypt(encrypted_data)
+        with self.lock:
+            return self.fernet.decrypt(encrypted_data)
 
     def encrypt(self, raw_data):
-        return self.fernet.encrypt(raw_data)
+        with self.lock:
+            return self.fernet.encrypt(raw_data)
