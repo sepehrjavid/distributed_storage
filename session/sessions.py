@@ -40,9 +40,15 @@ class SimpleSession:
         with self.transfer_lock:
             self.socket.send(data_length + encrypted_data)
 
-    def receive_data(self, decode=True):
+    def receive_data(self, decode=True, time_out=None):
         with self.receive_lock:
-            data_length = self.socket.recv(self.DATA_LENGTH_BYTE_NUMBER)
+            if time_out is not None:
+                self.socket.settimeout(time_out)
+            try:
+                data_length = self.socket.recv(self.DATA_LENGTH_BYTE_NUMBER)
+            except socket.timeout:
+                self.socket.settimeout(None)
+                return
             data_length = int.from_bytes(data_length,
                                          byteorder=self.DATA_LENGTH_BYTE_ORDER,
                                          signed=False)

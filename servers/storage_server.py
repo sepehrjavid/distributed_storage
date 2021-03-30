@@ -4,6 +4,7 @@ from time import time
 
 from broadcast.servers import SimpleBroadcastServer
 from servers.valid_messages import ACCEPT_CLIENT_TO_SERVE
+from session.sessions import SimpleSession
 from singleton.singleton import Singleton
 
 
@@ -12,8 +13,9 @@ class StorageServer(SimpleBroadcastServer, metaclass=Singleton):
     MAXIMUM_CLIENT_HANDLE_TIME = 5 * 60
     CONTROLLER_INTERVAL = 10
     STORAGE_SERVER_PORT_NUMBER = 54222
+    CLIENT_PORT_NUMBER = 54223
 
-    def __init__(self, ip_address, port_number):
+    def __init__(self, ip_address):
         super().__init__(ip_address, self.STORAGE_SERVER_PORT_NUMBER)
         self.active_clients = []
         self.active_clients_lock = Lock()
@@ -43,14 +45,16 @@ class StorageServer(SimpleBroadcastServer, metaclass=Singleton):
                     self.active_clients.remove(client)
 
     def __active_client_controller_thread(self):
+        print("controller go")
         while True:
             sleep(self.CONTROLLER_INTERVAL)
             self.__remove_expired_clients()
 
     def run(self):
+        print("server go")
         self.controller_thread = Thread(target=self.__active_client_controller_thread, args=[])
         self.controller_thread.start()
-        self.start()
+        self._start()
 
 
 class StorageClientThread(Thread):
@@ -59,8 +63,15 @@ class StorageClientThread(Thread):
         self.client_data = client_data
 
     def run(self):
+        print("let's go")
+        session = SimpleSession(self.client_data.get("ip_address"), StorageServer.CLIENT_PORT_NUMBER)
+        session.transfer_data(ACCEPT_CLIENT_TO_SERVE)
+        command = session.receive_data(time_out=2)
+        if command is None:
+            print("Connection failed")
+            return
+        print(command)
         # TODO create request
         # TODO receive chunk
         # TODO delete request
         # TODO delete chunk
-        pass

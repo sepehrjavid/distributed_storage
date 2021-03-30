@@ -16,7 +16,7 @@ def client():
 
 if __name__ == "__main__":
     server = StorageServer("192.168.1.12")
-    server.start()
+    server.run()
     # thread = Thread(target=client, args=[])
     # server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     # server.bind(("192.168.1.11", 54456))
