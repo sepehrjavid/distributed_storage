@@ -1,7 +1,9 @@
 import sqlite3
 
+from singleton.singleton import Singleton
 
-class MetaDatabase:
+
+class MetaDatabase(metaclass=Singleton):
     DATABASE_PATH = "meta_data.db"
     instance = None
 
@@ -9,12 +11,6 @@ class MetaDatabase:
         self.connection = sqlite3.connect(self.DATABASE_PATH)
         self.cursor = self.connection.cursor()
         self.initialize_tables()
-
-    @staticmethod
-    def get_database_instance():
-        if MetaDatabase.instance is None:
-            MetaDatabase.instance = MetaDatabase()
-        return MetaDatabase.instance
 
     def initialize_tables(self):
         self.cursor.execute("""CREATE TABLE IF NOT EXISTS data_node (

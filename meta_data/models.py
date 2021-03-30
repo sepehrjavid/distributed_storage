@@ -2,9 +2,9 @@ from meta_data.database import MetaDatabase
 
 
 class DataNode:
-    db = MetaDatabase.get_database_instance()
 
     def __init__(self, **kwargs):
+        self.db = MetaDatabase()
         self.id = kwargs.get("id")
         self.ip_address = kwargs.get("ip_address")
         self.rack_number = kwargs.get("rack_number")
@@ -80,9 +80,9 @@ class DataNode:
 
 
 class ChunkMetadata:
-    db = MetaDatabase.get_database_instance()
 
     def __init__(self, **kwargs):
+        self.db = MetaDatabase()
         self.id = kwargs.get("id")
         self.sequence = kwargs.get("sequence")
         self.local_path = kwargs.get("local_path")
