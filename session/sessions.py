@@ -6,6 +6,7 @@ from pickle import UnpicklingError
 from threading import Thread
 
 from encryption.encryptors import RSAEncryption
+from session.exceptions import PeerTimeOutException
 
 
 class SimpleSession:
@@ -13,17 +14,23 @@ class SimpleSession:
     DATA_LENGTH_BYTE_NUMBER = 2
     DATA_LENGTH_BYTE_ORDER = "big"
 
-    def __init__(self, ip_address=None, port_number=None, input_socket=None, is_server=False):
-        if input_socket:
-            self.socket = input_socket
+    def __init__(self, is_server=False, **kwargs):
+        if kwargs.get("input_socket"):
+            self.socket = kwargs.get("input_socket")
         else:
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.socket.connect((ip_address, port_number))
+            try:
+                self.socket.connect((kwargs.get("ip_address"), kwargs.get("port_number")))
+            except ConnectionRefusedError:
+                raise PeerTimeOutException
 
-        if is_server:
-            self.encryption_class = RSAEncryption.create_server_encryption(self.socket)
+        if kwargs.get("encryption_class"):
+            self.encryption_class = kwargs.get("encryption_class")
         else:
-            self.encryption_class = RSAEncryption.create_client_encryption(self.socket)
+            if is_server:
+                self.encryption_class = RSAEncryption.create_server_encryption(self.socket)
+            else:
+                self.encryption_class = RSAEncryption.create_client_encryption(self.socket)
 
         self.transfer_lock = threading.Lock()
         self.receive_lock = threading.Lock()
@@ -65,8 +72,11 @@ class SimpleSession:
             return received_data.decode()
         return received_data
 
-    def end_session(self):
+    def close(self):
         self.socket.close()
+
+    def convert_to_file_session(self):
+        return FileSession(input_socket=self.socket, encryption_class=self.encryption_class)
 
 
 class FileSession(SimpleSession):
@@ -74,8 +84,8 @@ class FileSession(SimpleSession):
     SEQUENCE_LENGTH = 2
     MTU = SimpleSession.MDU - SEQUENCE_LENGTH
 
-    def __init__(self, ip_address=None, port_number=None, input_socket=None, is_server=False):
-        super().__init__(ip_address, port_number, input_socket, is_server)
+    def __init__(self, is_server=False, **kwargs):
+        super().__init__(is_server, **kwargs)
         self.to_transfer_chunks = []
         self.received_chunks = []
         self.read_sequence = 0
@@ -122,6 +132,7 @@ class FileSession(SimpleSession):
         file_size = os.path.getsize(source_file_path)
         file = open(source_file_path, "rb")
         self.read_sequence = 0
+        self.to_transfer_chunks = []
 
         for i in range(self.THREAD_COUNT):
             file_reader_threads.append(Thread(target=self.__file_reading_thread, args=[file]))
@@ -159,6 +170,7 @@ class FileSession(SimpleSession):
 
     def receive_file(self, destination_filename=None):
         receive_threads = []
+        self.received_chunks = []
 
         for i in range(self.THREAD_COUNT):
             receive_threads.append(Thread(target=self.__file_receive_thread, args=[]))

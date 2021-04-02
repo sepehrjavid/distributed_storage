@@ -3,12 +3,13 @@ from time import sleep
 from time import time
 
 from broadcast.servers import SimpleBroadcastServer
-from servers.valid_messages import ACCEPT_CLIENT_TO_SERVE
+from servers.valid_messages import CREATE_FILE, DELETE_FILE
+from session.exceptions import PeerTimeOutException
 from session.sessions import SimpleSession
 from singleton.singleton import Singleton
 
 
-class StorageServer(SimpleBroadcastServer, metaclass=Singleton):
+class StorageClientServer(SimpleBroadcastServer, metaclass=Singleton):
     MAXIMUM_CLIENT_ALLOWED = 30
     MAXIMUM_CLIENT_HANDLE_TIME = 5 * 60
     CONTROLLER_INTERVAL = 10
@@ -41,17 +42,15 @@ class StorageServer(SimpleBroadcastServer, metaclass=Singleton):
         with self.active_clients_lock:
             for client in self.active_clients:
                 if time() - client["start_time"] >= self.MAXIMUM_CLIENT_HANDLE_TIME:
-                    # TODO stop client thread
+                    # TODO kill client thread
                     self.active_clients.remove(client)
 
     def __active_client_controller_thread(self):
-        print("controller go")
         while True:
             sleep(self.CONTROLLER_INTERVAL)
             self.__remove_expired_clients()
 
     def run(self):
-        print("server go")
         self.controller_thread = Thread(target=self.__active_client_controller_thread, args=[])
         self.controller_thread.start()
         self._start()
@@ -63,15 +62,20 @@ class StorageClientThread(Thread):
         self.client_data = client_data
 
     def run(self):
-        print("let's go")
-        session = SimpleSession(self.client_data.get("ip_address"), StorageServer.CLIENT_PORT_NUMBER)
-        session.transfer_data(ACCEPT_CLIENT_TO_SERVE)
-        command = session.receive_data(time_out=2)
-        if command is None:
-            print("Connection failed")
+        try:
+            session = SimpleSession(self.client_data.get("ip_address"), StorageClientServer.CLIENT_PORT_NUMBER)
+        except PeerTimeOutException:
             return
-        print(command)
-        # TODO create request
-        # TODO receive chunk
-        # TODO delete request
-        # TODO delete chunk
+
+        command = session.receive_data()
+
+        if command == CREATE_FILE:
+            self.create_file(session)
+        elif command == DELETE_FILE:
+            self.delete_file(session)
+
+    def create_file(self, session):
+        pass
+
+    def delete_file(self, session):
+        pass

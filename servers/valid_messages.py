@@ -1,1 +1,2 @@
-ACCEPT_CLIENT_TO_SERVE = "accept"
+CREATE_FILE = "add"
+DELETE_FILE = "rm"
