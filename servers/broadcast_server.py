@@ -4,21 +4,21 @@ from time import sleep
 from time import time
 
 from broadcast.servers import SimpleBroadcastServer
-from servers.valid_messages import CREATE_FILE, DELETE_FILE, CREATE_CHUNK
+from servers.valid_messages import CREATE_FILE, DELETE_FILE
 from session.exceptions import PeerTimeOutException
 from session.sessions import SimpleSession
 from singleton.singleton import Singleton
 
 
-class StorageClientServer(SimpleBroadcastServer, metaclass=Singleton):
+class BroadcastServer(SimpleBroadcastServer, metaclass=Singleton):
     MAXIMUM_CLIENT_ALLOWED = 30
     MAXIMUM_CLIENT_HANDLE_TIME = 5 * 60
     CONTROLLER_INTERVAL = 10
-    STORAGE_SERVER_PORT_NUMBER = 54222
-    CLIENT_PORT_NUMBER = 54223
+    BROADCAST_SERVER_PORT_NUMBER = 54222
+    CLIENT_PORT_NUMBER = BROADCAST_SERVER_PORT_NUMBER
 
     def __init__(self, ip_address, storage):
-        super().__init__(ip_address, self.STORAGE_SERVER_PORT_NUMBER)
+        super().__init__(ip_address, self.BROADCAST_SERVER_PORT_NUMBER)
         self.active_clients = []
         self.active_clients_lock = Lock()
         self.controller_thread = None
@@ -34,7 +34,7 @@ class StorageClientServer(SimpleBroadcastServer, metaclass=Singleton):
             "start_time": time()
         }
 
-        client_data["thread"] = StorageClientThread(client_data)
+        client_data["thread"] = ClientThread(client_data)
         client_data["thread"].start()
 
         with self.active_clients_lock:
@@ -58,15 +58,15 @@ class StorageClientServer(SimpleBroadcastServer, metaclass=Singleton):
         self._start()
 
 
-class StorageClientThread(Thread):
+class ClientThread(Thread):
     def __init__(self, client_data, storage, *args, **kwargs):
-        super(StorageClientThread, self).__init__(*args, **kwargs)
+        super(ClientThread, self).__init__(*args, **kwargs)
         self.client_data = client_data
         self.storage = storage
 
     def run(self):
         try:
-            session = SimpleSession(self.client_data.get("ip_address"), StorageClientServer.CLIENT_PORT_NUMBER)
+            session = SimpleSession(self.client_data.get("ip_address"), BroadcastServer.CLIENT_PORT_NUMBER)
         except PeerTimeOutException:
             return
 
