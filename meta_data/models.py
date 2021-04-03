@@ -2,9 +2,9 @@ from meta_data.database import MetaDatabase
 
 
 class DataNode:
+    db = MetaDatabase()
 
     def __init__(self, **kwargs):
-        self.db = MetaDatabase()
         self.id = kwargs.get("id")
         self.ip_address = kwargs.get("ip_address")
         self.rack_number = kwargs.get("rack_number")
@@ -45,7 +45,8 @@ class DataNode:
     @staticmethod
     def fetch_all():
         connection = DataNode.db.connection
-        sql_result = connection.cursor().execute("SELECT * FROM data_node;").fetchall()
+        sql_result = connection.cursor().execute(
+            "SELECT * FROM data_node ORDER BY available_byte_size DESC;").fetchall()
 
         data_nodes = []
         for data_node in sql_result:
@@ -80,9 +81,9 @@ class DataNode:
 
 
 class ChunkMetadata:
+    db = MetaDatabase()
 
     def __init__(self, **kwargs):
-        self.db = MetaDatabase()
         self.id = kwargs.get("id")
         self.sequence = kwargs.get("sequence")
         self.local_path = kwargs.get("local_path")
