@@ -1,2 +1,4 @@
-CREATE_FILE = "add"
-DELETE_FILE = "rm"
+CREATE_FILE = "crf"
+DELETE_FILE = "rmf"
+CREATE_CHUNK = "crc"
+DELETE_CHUNK = "rmc"
