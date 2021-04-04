@@ -24,10 +24,14 @@ class MetaDatabase(metaclass=Singleton):
         self.cursor.execute("""CREATE TABLE IF NOT EXISTS chunk_metadata (
                             id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                             sequence INTEGER NOT NULL,
-                            local_path VARCHAR(250) NOT NULL,
+                            title VARCHAR(250) NOT NULL,
+                            local_path VARCHAR(500) NOT NULL,
                             chunk_size INTEGER NOT NULL,
+                            permission VARCHAR(32) NOT NULL,
                             data_node_id INTEGER NOT NULL,
-                            FOREIGN KEY (data_node_id) REFERENCES data_node (id)
+                            FOREIGN KEY (data_node_id) REFERENCES data_node (id),
+                            UNIQUE(permission, title, data_node_id, sequence),
+                            UNIQUE(data_node_id, local_path)
                                 );""")
 
         self.cursor.execute("""CREATE TABLE IF NOT EXISTS next_chunk (

@@ -1,7 +1,12 @@
-from meta_data.models import DataNode
+from meta_data.models import DataNode, ChunkMetadata
+import os
+import uuid
+
+from singleton.singleton import Singleton
+from storage.exceptions import InvalidFileChunk
 
 
-class Storage:
+class Storage(metaclass=Singleton):
     CHUNK_SIZE = 64 * (10 ** 6)
     REPLICATION_FACTOR = 3
 
@@ -26,4 +31,17 @@ class Storage:
         return all_nodes[:required_node_numbers]
 
     def get_new_file_path(self):
-        pass
+        filepath = self.storage_path + str(uuid.uuid4())
+        while os.path.isfile(filepath):
+            filepath = self.storage_path + str(uuid.uuid4())
+
+        return filepath
+
+    def remove_chunk(self, title, permission):
+        chunk = ChunkMetadata.fetch_by_title_and_permission(title, permission)
+        if chunk is None:
+            raise InvalidFileChunk
+
+        if self.storage_path in chunk.local_path and os.path.isfile(chunk.local_path):
+            os.remove()
+        chunk.delete()

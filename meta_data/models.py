@@ -86,23 +86,26 @@ class ChunkMetadata:
     def __init__(self, **kwargs):
         self.id = kwargs.get("id")
         self.sequence = kwargs.get("sequence")
+        self.title = kwargs.get("title")
         self.local_path = kwargs.get("local_path")
         self.chunk_size = kwargs.get("chunk_size")
+        self.permission = kwargs.get("permission")
         self.data_node = kwargs.get("data_node")
 
     def __create(self):
         connection = self.db.connection
         self.id = connection.cursor().execute(
-            "INSERT INTO chunk_metadata (sequence, local_path, chunk_size, data_node_id) VALUES (?,?,?,?);",
-            (self.sequence, self.local_path, self.chunk_size, self.data_node.id)
+            """INSERT INTO chunk_metadata (sequence, title, local_path, chunk_size, permission, data_node_id)
+            VALUES (?,?,?,?,?,?);""",
+            (self.sequence, self.title, self.local_path, self.chunk_size, self.permission, self.data_node.id)
         ).lastrowid
         connection.commit()
 
     def __update(self):
         connection = self.db.connection
         connection.cursor().execute(
-            "UPDATE data_node SET sequence=?, local_path=?, chunk_size=?, data_node_id=? WHERE id=?",
-            (self.sequence, self.local_path, self.chunk_size, self.data_node.id, self.id))
+            "UPDATE data_node SET sequence=?, title=?, local_path=?, chunk_size=?, data_node_id=? WHERE id=?;",
+            (self.sequence, self.title, self.local_path, self.chunk_size, self.data_node.id, self.id))
         connection.commit()
 
     def save(self):
@@ -110,3 +113,21 @@ class ChunkMetadata:
             self.__create()
         else:
             self.__update()
+
+    def delete(self, **kwargs):
+        connection = self.db.connection
+        connection.cursor().execute("DELETE FROM chunk_metadata WHERE id = ?;", (self.id,))
+        connection.commit()
+
+    @staticmethod
+    def fetch_by_title_and_permission(title, permission):
+        connection = ChunkMetadata.db.connection
+        sql_result = connection.cursor().execute("SELECT * FROM chunk_metadata WHERE permission=? AND title=?;",
+                                                 (permission, title)).fetchall()
+        if len(sql_result) == 0:
+            return None
+
+        chunk = sql_result[0]
+
+        return ChunkMetadata(id=chunk[0], sequence=chunk[1], title=chunk[2], local_path=chunk[3], chunk_size=chunk[4],
+                             permission=chunk[5], data_node=DataNode.fetch_by_id(chunk[6]))
