@@ -53,12 +53,15 @@ class Storage(metaclass=Singleton):
             os.remove(chunk.local_path)
         chunk.delete()
 
+    def update_byte_size(self, byte_size):
+        self.current_data_node.available_byte_size += byte_size
+        self.current_data_node.save()
+        # TODO inform the rest of the nodes
+
     def add_chunk(self, **kwargs):
         if kwargs.get("local_path") is not None and self.is_valid_path(kwargs.get("local_path")):
             chunk = ChunkMetadata(**kwargs, data_node=self.current_data_node)
             chunk.save()
-            self.current_data_node.available_byte_size -= chunk.chunk_size
-            self.current_data_node.save()
         else:
             raise InvalidFilePath
 
@@ -66,7 +69,7 @@ class Storage(metaclass=Singleton):
         if self.is_valid_path(path):
             os.remove(path)
 
-    def get_replication_data_nodes(self):
+    def get_replication_data_nodes(self, chunk_size):
         all_data_nodes = DataNode.fetch_all()
         other_data_nodes = list(filter(lambda x: x.id != self.current_data_node.id, all_data_nodes))
         racks = {}

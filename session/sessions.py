@@ -4,6 +4,7 @@ import socket
 import threading
 from pickle import UnpicklingError
 from threading import Thread
+from storage.storage import Storage
 
 from encryption.encryptors import RSAEncryption
 from session.exceptions import PeerTimeOutException
@@ -126,10 +127,14 @@ class FileSession(SimpleSession):
 
             self.transfer_data(data, encode=False)
 
-    def transfer_file(self, source_file_path):
+    def transfer_file(self, source_file_path, user_permission):
         file_reader_threads = []
         socket_sender_threads = []
+
         file_size = os.path.getsize(source_file_path)
+        meta_data = {"size": file_size, "permission": user_permission}
+        self.transfer_data(pickle.dumps(meta_data), encode=False)
+
         file = open(source_file_path, "rb")
         self.read_sequence = 0
         self.to_transfer_chunks = []
@@ -168,7 +173,19 @@ class FileSession(SimpleSession):
                 with self.received_chunks_lock:
                     self.received_chunks.append(data)
 
-    def receive_file(self, destination_filename=None):
+    def receive_file(self, storage: Storage, replicate=True):
+        meta_data = pickle.loads(self.receive_data(decode=False))
+
+        file_size = meta_data["size"]
+        permission = meta_data["permission"]
+
+        storage.update_byte_size(-file_size)
+        destination_filename = storage.get_new_file_path()
+
+        replication_nodes = []
+        if replicate:
+            replication_nodes = storage.get_replication_data_nodes()
+
         receive_threads = []
         self.received_chunks = []
 
