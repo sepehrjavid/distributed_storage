@@ -9,9 +9,13 @@ from storage.storage import Storage
 from encryption.encryptors import RSAEncryption
 from session.exceptions import PeerTimeOutException
 
+'''
+The receiver in any sort of session is the server!
+'''
+
 
 class SimpleSession:
-    MDU = 12000
+    MDU = 16386
     DATA_LENGTH_BYTE_NUMBER = 2
     DATA_LENGTH_BYTE_ORDER = "big"
 
@@ -76,83 +80,75 @@ class SimpleSession:
     def close(self):
         self.socket.close()
 
-    def convert_to_file_session(self):
-        return FileSession(input_socket=self.socket, encryption_class=self.encryption_class)
 
-
-class FileSession(SimpleSession):
+class FileSession:
     THREAD_COUNT = 6
     SEQUENCE_LENGTH = 2
     MTU = SimpleSession.MDU - SEQUENCE_LENGTH
+    BYTES_TO_SEND_BYTE_SIZE = 3
 
-    def __init__(self, is_server=False, **kwargs):
-        super().__init__(is_server, **kwargs)
-        self.to_transfer_chunks = []
-        self.received_chunks = []
-        self.read_sequence = 0
-        self.file_lock = threading.Lock()
-        self.to_transfer_chunks_lock = threading.Lock()
-        self.received_chunks_lock = threading.Lock()
+    def __init__(self, file_path=None, **kwargs):
+        self.ip_address = kwargs.get("ip_address")
+        self.port_number = kwargs.get("port_number")
+        self.file_path = file_path
 
-    def __file_reading_thread(self, file):
-        while True:
-            with self.file_lock:
+    def __file_transfer_thread(self, file_path, start_file_byte, byte_to_send, session=None):
+        sequence = (start_file_byte / self.MTU) + 1
+
+        if session is None:
+            session = SimpleSession(ip_address=self.ip_address, port_number=self.port_number)
+        session.transfer_data(int(byte_to_send).to_bytes(byteorder=SimpleSession.DATA_LENGTH_BYTE_ORDER,
+                                                         length=self.BYTES_TO_SEND_BYTE_SIZE,
+                                                         signed=False))
+        bytes_sent = 0
+        with open(file_path, "rb") as file:
+            file.seek(start_file_byte)
+
+            while bytes_sent < byte_to_send:
                 data = file.read(self.MTU)
-                temp = self.read_sequence
-                self.read_sequence += 1
-
-            if not data:
-                break
-
-            result = int(temp).to_bytes(byteorder=self.DATA_LENGTH_BYTE_ORDER,
-                                        length=self.DATA_LENGTH_BYTE_NUMBER,
-                                        signed=False) + data
-
-            with self.to_transfer_chunks_lock:
-                self.to_transfer_chunks.append(result)
-
-        with self.to_transfer_chunks_lock:
-            self.to_transfer_chunks.append(None)
-
-    def __file_transfer_thread(self):
-        while True:
-            with self.to_transfer_chunks_lock:
-                if len(self.to_transfer_chunks) == 0:
-                    continue
-                data = self.to_transfer_chunks.pop(0)
-
-            if data is None:
-                self.transfer_data(pickle.dumps(None), encode=False)
-                break
-
-            self.transfer_data(data, encode=False)
+                result = int(sequence).to_bytes(byteorder=SimpleSession.DATA_LENGTH_BYTE_ORDER,
+                                                length=SimpleSession.DATA_LENGTH_BYTE_NUMBER,
+                                                signed=False) + data
+                session.transfer_data(result, encode=False)
+                bytes_sent += len(data)
 
     def transfer_file(self, source_file_path, user_permission):
-        file_reader_threads = []
-        socket_sender_threads = []
+        threads = []
+        bytes_assigned = 0
 
         file_size = os.path.getsize(source_file_path)
         meta_data = {"size": file_size, "permission": user_permission}
-        self.transfer_data(pickle.dumps(meta_data), encode=False)
 
-        file = open(source_file_path, "rb")
-        self.read_sequence = 0
-        self.to_transfer_chunks = []
+        initial_session = SimpleSession(ip_address=self.ip_address, port_number=self.port_number)
+        initial_session.transfer_data(pickle.dumps(meta_data), encode=False)
 
-        for i in range(self.THREAD_COUNT):
-            file_reader_threads.append(Thread(target=self.__file_reading_thread, args=[file]))
-            file_reader_threads[-1].start()
+        if file_size / self.MTU == 0:
+            threads.append(
+                Thread(target=self.__file_transfer_thread, args=[source_file_path, 0, file_size, initial_session]))
+            bytes_assigned += file_size
+            file_size -= file_size
+        else:
+            threads.append(
+                Thread(target=self.__file_transfer_thread, args=[source_file_path, 0, self.MTU, initial_session]))
+            bytes_assigned += self.MTU
+            file_size -= self.MTU
 
-        for i in range(self.THREAD_COUNT):
-            socket_sender_threads.append(Thread(target=self.__file_transfer_thread, args=[]))
-            socket_sender_threads[-1].start()
+        threads[-1].start()
 
-        for thread in file_reader_threads:
-            thread.join()
+        for i in range(self.THREAD_COUNT - 1):
+            if file_size / self.MTU == 0:
+                threads.append(
+                    Thread(target=self.__file_transfer_thread, args=[source_file_path, bytes_assigned, file_size]))
+                bytes_assigned += file_size
+                file_size -= file_size
+            else:
+                threads.append(
+                    Thread(target=self.__file_transfer_thread, args=[source_file_path, bytes_assigned, self.MTU]))
+                bytes_assigned += self.MTU
+                file_size -= self.MTU
+            threads[-1].start()
 
-        file.close()
-
-        for thread in socket_sender_threads:
+        for thread in threads:
             thread.join()
 
     def __file_receive_thread(self):
