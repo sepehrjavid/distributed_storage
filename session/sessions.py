@@ -14,9 +14,10 @@ The transmitter in any sort of session is the server!
 
 
 class SimpleSession:
-    MDU = 16386
+    MTU = 10002
     DATA_LENGTH_BYTE_NUMBER = 2
     DATA_LENGTH_BYTE_ORDER = "big"
+    MDU = MTU - DATA_LENGTH_BYTE_NUMBER
 
     def __init__(self, is_server=False, **kwargs):
         if kwargs.get("input_socket"):
@@ -37,26 +38,27 @@ class SimpleSession:
         if encode:
             data = data.encode()
 
-        encrypted_data = self.encryption_class.encrypt(data)
+        length = len(data)
+        if length != self.MDU:
+            data = data + ((self.MDU - length) * b'0')
+        elif length > self.MDU:
+            raise Exception("invalid MDU")
 
-        data_length = int(len(data)).to_bytes(byteorder=self.DATA_LENGTH_BYTE_ORDER,
-                                              length=self.DATA_LENGTH_BYTE_NUMBER,
-                                              signed=False)
+        data_length = int(length).to_bytes(byteorder=self.DATA_LENGTH_BYTE_ORDER,
+                                           length=self.DATA_LENGTH_BYTE_NUMBER,
+                                           signed=False)
+
         self.socket.send(data_length + data)
+        print(data_length + data)
 
     def receive_data(self, decode=True):
-        data_length = self.socket.recv(self.DATA_LENGTH_BYTE_NUMBER)
-        data_length = int.from_bytes(data_length,
+        packet = self.socket.recv(self.MTU)
+        data_length = int.from_bytes(packet[:self.DATA_LENGTH_BYTE_NUMBER],
                                      byteorder=self.DATA_LENGTH_BYTE_ORDER,
                                      signed=False)
-        bytes_read = 0
-        encrypted_data = b''
-        while bytes_read < data_length:
-            temp_encrypted_data = self.socket.recv(data_length - bytes_read)
-            encrypted_data += temp_encrypted_data
-            bytes_read += len(temp_encrypted_data)
 
         # received_data = self.encryption_class.decrypt(encrypted_data)
+        encrypted_data = packet[self.DATA_LENGTH_BYTE_NUMBER:self.DATA_LENGTH_BYTE_NUMBER + data_length]
 
         if decode:
             return encrypted_data.decode()
@@ -72,8 +74,8 @@ class SimpleSession:
 class FileSession:
     THREAD_COUNT = 5
     SEQUENCE_LENGTH = 2
-    MTU = SimpleSession.MDU - SEQUENCE_LENGTH
-    FILE_TRANSFER_PORT = 54224
+    MDU = SimpleSession.MDU - SEQUENCE_LENGTH
+    FILE_TRANSFER_PORT = 33224
 
     def __init__(self, server_ip_address):
         self.to_transfer_chunks = []
@@ -86,7 +88,7 @@ class FileSession:
 
         with open(file_path, "rb") as file:
             while True:
-                data = file.read(self.MTU)
+                data = file.read(self.MDU)
 
                 if not data:
                     break
@@ -110,7 +112,6 @@ class FileSession:
             data = self.to_transfer_chunks[thread_id].pop(0)
 
             if data is None:
-                session.transfer_data(pickle.dumps(None), encode=False)
                 break
 
             session.transfer_data(data, encode=False)
@@ -142,20 +143,16 @@ class FileSession:
 
         while True:
             data = session.receive_data(decode=False)
+            if data == b'':
+                break
 
-            try:
-                eof = pickle.loads(data)
-                if eof is None:
-                    break
-            except UnpicklingError:
+            data = (int.from_bytes(data[:self.SEQUENCE_LENGTH],
+                                   byteorder=SimpleSession.DATA_LENGTH_BYTE_ORDER,
+                                   signed=False),
+                    data[self.SEQUENCE_LENGTH:])
 
-                data = (int.from_bytes(data[:self.SEQUENCE_LENGTH],
-                                       byteorder=SimpleSession.DATA_LENGTH_BYTE_ORDER,
-                                       signed=False),
-                        data[self.SEQUENCE_LENGTH:])
-
-                with self.received_chunks_lock:
-                    self.received_chunks.append(data)
+            with self.received_chunks_lock:
+                self.received_chunks.append(data)
 
         session.close()
 
@@ -171,7 +168,7 @@ class FileSession:
         for thread in receive_threads:
             thread.join()
 
-        destination_filename = "/Users/sepehrjavid/Desktop/qpashm.mkv"
+        destination_filename = "/Users/sepehrjavid/Desktop/qpashm.txt"
         self.received_chunks.sort(key=lambda x: x[0])
         file = open(destination_filename, 'wb')
 
