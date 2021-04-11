@@ -7,7 +7,6 @@ from threading import Thread
 from storage.storage import Storage
 
 from encryption.encryptors import RSAEncryption
-from session.exceptions import PeerTimeOutException
 
 '''
 The transmitter in any sort of session is the server!
@@ -24,10 +23,7 @@ class SimpleSession:
             self.socket = kwargs.get("input_socket")
         else:
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            try:
-                self.socket.connect((kwargs.get("ip_address"), kwargs.get("port_number")))
-            except ConnectionRefusedError:
-                raise PeerTimeOutException
+            self.socket.connect((kwargs.get("ip_address"), kwargs.get("port_number")))
 
         if kwargs.get("encryption_class"):
             self.encryption_class = kwargs.get("encryption_class")
@@ -36,9 +32,6 @@ class SimpleSession:
                 self.encryption_class = RSAEncryption.create_server_encryption(self.socket)
             else:
                 self.encryption_class = RSAEncryption.create_client_encryption(self.socket)
-
-        self.transfer_lock = threading.Lock()
-        self.receive_lock = threading.Lock()
 
     def transfer_data(self, data, encode=True):
         if encode:
@@ -49,27 +42,19 @@ class SimpleSession:
         data_length = int(len(encrypted_data)).to_bytes(byteorder=self.DATA_LENGTH_BYTE_ORDER,
                                                         length=self.DATA_LENGTH_BYTE_NUMBER,
                                                         signed=False)
-        with self.transfer_lock:
-            self.socket.send(data_length + encrypted_data)
+        self.socket.send(data_length + encrypted_data)
 
-    def receive_data(self, decode=True, time_out=None):
-        with self.receive_lock:
-            if time_out is not None:
-                self.socket.settimeout(time_out)
-            try:
-                data_length = self.socket.recv(self.DATA_LENGTH_BYTE_NUMBER)
-            except socket.timeout:
-                self.socket.settimeout(None)
-                return
-            data_length = int.from_bytes(data_length,
-                                         byteorder=self.DATA_LENGTH_BYTE_ORDER,
-                                         signed=False)
-            bytes_read = 0
-            encrypted_data = b''
-            while bytes_read < data_length:
-                temp_encrypted_data = self.socket.recv(data_length - bytes_read)
-                encrypted_data += temp_encrypted_data
-                bytes_read += len(temp_encrypted_data)
+    def receive_data(self, decode=True):
+        data_length = self.socket.recv(self.DATA_LENGTH_BYTE_NUMBER)
+        data_length = int.from_bytes(data_length,
+                                     byteorder=self.DATA_LENGTH_BYTE_ORDER,
+                                     signed=False)
+        bytes_read = 0
+        encrypted_data = b''
+        while bytes_read < data_length:
+            temp_encrypted_data = self.socket.recv(data_length - bytes_read)
+            encrypted_data += temp_encrypted_data
+            bytes_read += len(temp_encrypted_data)
 
         received_data = self.encryption_class.decrypt(encrypted_data)
 
@@ -170,8 +155,8 @@ class FileSession:
 
         session.close()
 
-    def receive_file(self, storage: Storage, title, chunk_size, permission_hash, chunk_sequence):
-        storage.update_byte_size(-chunk_size)
+    def receive_file(self):
+        # storage.update_byte_size(-chunk_size)
         receive_threads = []
         self.received_chunks = []
 
@@ -187,7 +172,7 @@ class FileSession:
         for thread in receive_threads:
             thread.join()
 
-        destination_filename = storage.get_new_file_path()
+        destination_filename = "/Users/sepehrjavid/Desktop/qpashm.mkv"
         self.received_chunks.sort(key=lambda x: x[0])
         file = open(destination_filename, 'wb')
 

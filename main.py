@@ -9,15 +9,16 @@ from storage.storage import Storage
 
 
 def client():
-    session = FileSession(ip_address="192.168.1.11", port_number=54455)
-    session.receive_file()
+    receiver = FileSession(server_ip_address="192.168.1.11")
+    receiver.receive_file()
 
 
 if __name__ == "__main__":
     thread = Thread(target=client, args=[])
-    session = FileSession(ip_address="192.168.1.11", port_number=54455)
+    transmitter = FileSession(server_ip_address="192.168.1.11")
     start = time()
     thread.start()
-    session.transfer_file("/Users/sepehrjavid/Desktop/q.mkv", "sep")
+    sleep(1)
+    transmitter.transfer_file("/Users/sepehrjavid/Desktop/q.mkv", "192.168.1.11")
     thread.join()
     print(time() - start)
