@@ -1,14 +1,16 @@
-import os
 import pickle
 import socket
-from threading import Thread, Lock
+import threading
+from pickle import UnpicklingError
+from threading import Thread
+
 from storage.storage import Storage
 
 from encryption.encryptors import RSAEncryption
 from session.exceptions import PeerTimeOutException
 
 '''
-The receiver in any sort of session is the server!
+The transmitter in any sort of session is the server!
 '''
 
 
@@ -35,8 +37,8 @@ class SimpleSession:
             else:
                 self.encryption_class = RSAEncryption.create_client_encryption(self.socket)
 
-        self.transfer_lock = Lock()
-        self.receive_lock = Lock()
+        self.transfer_lock = threading.Lock()
+        self.receive_lock = threading.Lock()
 
     def transfer_data(self, data, encode=True):
         if encode:
@@ -78,127 +80,118 @@ class SimpleSession:
     def close(self):
         self.socket.close()
 
+    def convert_to_file_session(self):
+        return FileSession(input_socket=self.socket, encryption_class=self.encryption_class)
+
 
 class FileSession:
-    THREAD_COUNT = 1
+    THREAD_COUNT = 5
     SEQUENCE_LENGTH = 2
     MTU = SimpleSession.MDU - SEQUENCE_LENGTH
-    BYTES_TO_SEND_BYTE_SIZE = 3
+    FILE_TRANSFER_PORT = 54224
 
-    def __init__(self, ip_address, port_number):
-        self.ip_address = ip_address
-        self.port_number = port_number
+    def __init__(self, server_ip_address):
+        self.to_transfer_chunks = []
         self.received_chunks = []
-        self.received_chunks_lock = Lock()
+        self.received_chunks_lock = threading.Lock()
+        self.server_ip_address = server_ip_address
 
-    def __file_transfer_thread(self, file_path, start_file_byte, byte_to_send, session=None):
-        sequence = (start_file_byte / self.MTU) + 1
+    def __file_reading_thread(self, file_path):
+        read_sequence = 0
 
-        if session is None:
-            session = SimpleSession(ip_address=self.ip_address, port_number=self.port_number)
-        session.transfer_data(int(byte_to_send).to_bytes(byteorder=SimpleSession.DATA_LENGTH_BYTE_ORDER,
-                                                         length=self.BYTES_TO_SEND_BYTE_SIZE,
-                                                         signed=False), encode=False)
         with open(file_path, "rb") as file:
-            file.seek(start_file_byte)
+            while True:
+                data = file.read(self.MTU)
 
-            while byte_to_send > 0:
-                if byte_to_send < self.MTU:
-                    data = file.read(byte_to_send)
-                else:
-                    data = file.read(self.MTU)
+                if not data:
+                    break
 
-                result = int(sequence).to_bytes(byteorder=SimpleSession.DATA_LENGTH_BYTE_ORDER,
-                                                length=SimpleSession.DATA_LENGTH_BYTE_NUMBER,
-                                                signed=False) + data
-                session.transfer_data(result, encode=False)
-                byte_to_send -= len(data)
+                result = int(read_sequence).to_bytes(byteorder=SimpleSession.DATA_LENGTH_BYTE_ORDER,
+                                                     length=SimpleSession.DATA_LENGTH_BYTE_NUMBER,
+                                                     signed=False) + data
+
+                self.to_transfer_chunks[read_sequence % self.THREAD_COUNT].append(result)
+                read_sequence += 1
+
+        for lst in self.to_transfer_chunks:
+            lst.append(None)
+
+    def __file_transfer_thread(self, thread_id, ip_address):
+        session = SimpleSession(ip_address=ip_address, port_number=self.FILE_TRANSFER_PORT, is_server=True)
+
+        while True:
+            if len(self.to_transfer_chunks[thread_id]) == 0:
+                continue
+            data = self.to_transfer_chunks[thread_id].pop(0)
+
+            if data is None:
+                session.transfer_data(pickle.dumps(None), encode=False)
+                break
+
+            session.transfer_data(data, encode=False)
 
         session.close()
 
-    def transfer_file(self, source_file_path, user_permission):
-        threads = []
-        assigned_bytes = 0
+    def transfer_file(self, source_file_path, ip_address):
+        sender_threads = []
+        self.to_transfer_chunks = [[] for _ in range(self.THREAD_COUNT)]
 
-        file_size = os.path.getsize(source_file_path)
-        meta_data = {"size": file_size, "permission": user_permission}
+        file_reader_thread = Thread(target=self.__file_reading_thread, args=[source_file_path])
+        file_reader_thread.start()
 
-        threads_bytes_to_send = self.THREAD_COUNT * [file_size // self.THREAD_COUNT]
-        if file_size % self.THREAD_COUNT != 0:
-            threads_bytes_to_send[-1] += file_size % self.THREAD_COUNT
+        for i in range(self.THREAD_COUNT):
+            sender_threads.append(Thread(target=self.__file_transfer_thread, args=[i, ip_address]))
+            sender_threads[-1].start()
 
-        initial_session = SimpleSession(ip_address=self.ip_address, port_number=self.port_number)
-        initial_session.transfer_data(pickle.dumps(meta_data), encode=False)
+        file_reader_thread.join()
 
-        threads.append(
-            Thread(target=self.__file_transfer_thread,
-                   args=[source_file_path, 0, threads_bytes_to_send[0], initial_session]))
-        assigned_bytes += threads_bytes_to_send[0]
-
-        threads[-1].start()
-
-        for i in range(1, self.THREAD_COUNT):
-            threads.append(
-                Thread(target=self.__file_transfer_thread,
-                       args=[source_file_path, assigned_bytes, threads_bytes_to_send[i]]))
-            threads[-1].start()
-            assigned_bytes += threads_bytes_to_send[i]
-
-        for thread in threads:
+        for thread in sender_threads:
             thread.join()
 
-    def __file_receive_thread(self, client_socket, session=None):
-        if session is None:
-            session = SimpleSession(is_server=True, input_socket=client_socket)
-        byte_to_receive = int.from_bytes(session.receive_data(decode=False),
-                                         byteorder=SimpleSession.DATA_LENGTH_BYTE_ORDER,
-                                         signed=False)
+    def __file_receive_thread(self, client_socket):
+        session = SimpleSession(input_socket=client_socket)
 
-        bytes_received = 0
-        while bytes_received < byte_to_receive:
+        while True:
             data = session.receive_data(decode=False)
 
-            bytes_received += len(data[self.SEQUENCE_LENGTH:])
+            try:
+                eof = pickle.loads(data)
+                if eof is None:
+                    break
+            except UnpicklingError:
 
-            data = (int.from_bytes(data[:self.SEQUENCE_LENGTH],
-                                   byteorder=SimpleSession.DATA_LENGTH_BYTE_ORDER,
-                                   signed=False),
-                    data[self.SEQUENCE_LENGTH:])
+                data = (int.from_bytes(data[:self.SEQUENCE_LENGTH],
+                                       byteorder=SimpleSession.DATA_LENGTH_BYTE_ORDER,
+                                       signed=False),
+                        data[self.SEQUENCE_LENGTH:])
 
-            with self.received_chunks_lock:
-                self.received_chunks.append(data)
+                with self.received_chunks_lock:
+                    self.received_chunks.append(data)
 
-    def receive_file(self, storage: Storage = None):
-        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server_socket.bind((self.ip_address, self.port_number))
-        server_socket.listen(5)
-        client_socket, addr = server_socket.accept()
+        session.close()
 
-        initial_session = SimpleSession(input_socket=client_socket, is_server=True)
-        meta_data = pickle.loads(initial_session.receive_data(decode=False))
-
-        # destination_filename = storage.get_new_file_path()
-        destination_filename = "/Users/sepehrjavid/Desktop/f.mkv"
-
+    def receive_file(self, storage: Storage, title, chunk_size, permission_hash, chunk_sequence):
+        storage.update_byte_size(-chunk_size)
         receive_threads = []
         self.received_chunks = []
 
-        receive_threads.append(
-            Thread(target=self.__file_receive_thread, args=[initial_session.socket, initial_session]))
-        receive_threads[-1].start()
+        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_socket.bind((self.server_ip_address, self.FILE_TRANSFER_PORT))
+        server_socket.listen(5)
 
-        for i in range(self.THREAD_COUNT - 1):
+        for _ in range(self.THREAD_COUNT):
             client_socket, addr = server_socket.accept()
             receive_threads.append(Thread(target=self.__file_receive_thread, args=[client_socket]))
             receive_threads[-1].start()
 
-        server_socket.close()
-
         for thread in receive_threads:
             thread.join()
 
+        destination_filename = storage.get_new_file_path()
         self.received_chunks.sort(key=lambda x: x[0])
+        file = open(destination_filename, 'wb')
 
-        with open(destination_filename, 'wb') as file:
-            for data in self.received_chunks:
-                file.write(data[1])
+        for data in self.received_chunks:
+            file.write(data[1])
+
+        file.close()
