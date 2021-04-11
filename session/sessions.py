@@ -39,10 +39,10 @@ class SimpleSession:
 
         encrypted_data = self.encryption_class.encrypt(data)
 
-        data_length = int(len(encrypted_data)).to_bytes(byteorder=self.DATA_LENGTH_BYTE_ORDER,
-                                                        length=self.DATA_LENGTH_BYTE_NUMBER,
-                                                        signed=False)
-        self.socket.send(data_length + encrypted_data)
+        data_length = int(len(data)).to_bytes(byteorder=self.DATA_LENGTH_BYTE_ORDER,
+                                              length=self.DATA_LENGTH_BYTE_NUMBER,
+                                              signed=False)
+        self.socket.send(data_length + data)
 
     def receive_data(self, decode=True):
         data_length = self.socket.recv(self.DATA_LENGTH_BYTE_NUMBER)
@@ -56,11 +56,11 @@ class SimpleSession:
             encrypted_data += temp_encrypted_data
             bytes_read += len(temp_encrypted_data)
 
-        received_data = self.encryption_class.decrypt(encrypted_data)
+        # received_data = self.encryption_class.decrypt(encrypted_data)
 
         if decode:
-            return received_data.decode()
-        return received_data
+            return encrypted_data.decode()
+        return encrypted_data
 
     def close(self):
         self.socket.close()
