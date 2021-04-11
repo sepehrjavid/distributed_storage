@@ -4,6 +4,10 @@ import socket
 import threading
 from pickle import UnpicklingError
 from threading import Thread
+
+from meta_data.models import DataNode
+from servers.data_node_server import DataNodeServer
+from servers.valid_messages import REPLICATE, ACCEPT, OUT_OF_SPACE
 from storage.storage import Storage
 
 from encryption.encryptors import RSAEncryption
@@ -11,7 +15,7 @@ from session.exceptions import PeerTimeOutException
 
 
 class SimpleSession:
-    MDU = 12000
+    MDU = 16000
     DATA_LENGTH_BYTE_NUMBER = 2
     DATA_LENGTH_BYTE_ORDER = "big"
 
@@ -127,13 +131,13 @@ class FileSession(SimpleSession):
 
             self.transfer_data(data, encode=False)
 
-    def transfer_file(self, source_file_path, user_permission):
+    def transfer_file(self, source_file_path):
         file_reader_threads = []
         socket_sender_threads = []
 
-        file_size = os.path.getsize(source_file_path)
-        meta_data = {"size": file_size, "permission": user_permission}
-        self.transfer_data(pickle.dumps(meta_data), encode=False)
+        # file_size = os.path.getsize(source_file_path)
+        # meta_data = {"size": file_size, "permission": user_permission}
+        # self.transfer_data(pickle.dumps(meta_data), encode=False)
 
         file = open(source_file_path, "rb")
         self.read_sequence = 0
@@ -173,13 +177,31 @@ class FileSession(SimpleSession):
                 with self.received_chunks_lock:
                     self.received_chunks.append(data)
 
-    def receive_file(self, storage: Storage, replicate=True):
-        meta_data = pickle.loads(self.receive_data(decode=False))
+    def __replicate_thread(self, active_threads, node: DataNode, **chunk_data):
+        session = SimpleSession(ip_address=node.ip_address, port_number=DataNodeServer.DATA_NODE_PORT_NUMBER)
+        msg = REPLICATE.format(chunk_size=chunk_data.get("chunk_size"), perm_hash=chunk_data.get("perm_hash"),
+                               title=chunk_data.get("title"), sequence=chunk_data.get("sequence"))
+        session.transfer_data(msg)
+        response = session.receive_data()
+        if response == OUT_OF_SPACE:
+            pass
 
-        file_size = meta_data["size"]
-        permission = meta_data["permission"]
+        chunks_replicated = []
+        termination_message_seen = 0
 
-        storage.update_byte_size(-file_size)
+        while True:
+            with self.received_chunks_lock:
+                sample = self.received_chunks[-1]
+
+            if sample in chun
+
+    def receive_file(self, storage: Storage, title, chunk_size, permission_hash, chunk_sequence, replicate=False):
+        # meta_data = pickle.loads(self.receive_data(decode=False))
+
+        # file_size = meta_data["size"]
+        # permission = meta_data["permission"]
+
+        storage.update_byte_size(-chunk_size)
         destination_filename = storage.get_new_file_path()
 
         replication_nodes = []
