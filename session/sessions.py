@@ -102,7 +102,7 @@ class FileSession:
             lst.append(None)
 
     def __file_transfer_thread(self, thread_id, ip_address):
-        session = SimpleSession(ip_address=ip_address, port_number=self.FILE_TRANSFER_PORT, is_server=True)
+        session = SimpleSession(ip_address=ip_address, port_number=self.FILE_TRANSFER_PORT + thread_id, is_server=True)
 
         while True:
             if len(self.to_transfer_chunks[thread_id]) == 0:
@@ -133,7 +133,11 @@ class FileSession:
         for thread in sender_threads:
             thread.join()
 
-    def __file_receive_thread(self, client_socket):
+    def __file_receive_thread(self, thread_id):
+        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_socket.bind((self.server_ip_address, self.FILE_TRANSFER_PORT + thread_id))
+        server_socket.listen(5)
+        client_socket, addr = server_socket.accept()
         session = SimpleSession(input_socket=client_socket)
 
         while True:
@@ -160,13 +164,8 @@ class FileSession:
         receive_threads = []
         self.received_chunks = []
 
-        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server_socket.bind((self.server_ip_address, self.FILE_TRANSFER_PORT))
-        server_socket.listen(5)
-
-        for _ in range(self.THREAD_COUNT):
-            client_socket, addr = server_socket.accept()
-            receive_threads.append(Thread(target=self.__file_receive_thread, args=[client_socket]))
+        for i in range(self.THREAD_COUNT):
+            receive_threads.append(Thread(target=self.__file_receive_thread, args=[i]))
             receive_threads[-1].start()
 
         for thread in receive_threads:

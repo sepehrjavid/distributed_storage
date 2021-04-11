@@ -14,11 +14,10 @@ def client():
 
 
 if __name__ == "__main__":
-    thread = Thread(target=client, args=[])
+    # thread = Thread(target=client, args=[])
     transmitter = FileSession(server_ip_address="192.168.1.11")
     start = time()
-    thread.start()
-    sleep(1)
-    transmitter.transfer_file("/Users/sepehrjavid/Desktop/q.mkv", "192.168.1.11")
-    thread.join()
+    # thread.start()
+    transmitter.transfer_file("/Users/sepehrjavid/Desktop/q.txt", "192.168.1.14")
+    # thread.join()
     print(time() - start)
