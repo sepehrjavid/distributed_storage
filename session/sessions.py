@@ -1,7 +1,7 @@
 import pickle
 import socket
 import threading
-from pickle import UnpicklingError
+from pickle import UnpicklingError, PickleError
 from threading import Thread
 
 from storage.storage import Storage
@@ -14,7 +14,7 @@ The transmitter in any sort of session is the server!
 
 
 class SimpleSession:
-    MTU = 16000
+    MTU = 16388
     DATA_LENGTH_BYTE_NUMBER = 2
     DATA_LENGTH_BYTE_ORDER = "big"
     MDU = MTU - DATA_LENGTH_BYTE_NUMBER
@@ -38,27 +38,27 @@ class SimpleSession:
         if encode:
             data = data.encode()
 
-        length = len(data)
-        if length != self.MDU:
-            data = data + ((self.MDU - length) * b'0')
-        elif length > self.MDU:
-            raise Exception("invalid MDU")
+        # encrypted_data = self.encryption_class.encrypt(data)
 
-        data_length = int(length).to_bytes(byteorder=self.DATA_LENGTH_BYTE_ORDER,
-                                           length=self.DATA_LENGTH_BYTE_NUMBER,
-                                           signed=False)
-
+        data_length = int(len(data)).to_bytes(byteorder=self.DATA_LENGTH_BYTE_ORDER,
+                                              length=self.DATA_LENGTH_BYTE_NUMBER,
+                                              signed=False)
         self.socket.send(data_length + data)
 
-    def receive_data(self, decode=True):
-        packet = self.socket.recv(self.MTU)
-        print(len(packet))
-        data_length = int.from_bytes(packet[:self.DATA_LENGTH_BYTE_NUMBER],
+    def receive_data(self, decode=True, time_out=None):
+        data_length = self.socket.recv(self.DATA_LENGTH_BYTE_NUMBER)
+        data_length = int.from_bytes(data_length,
                                      byteorder=self.DATA_LENGTH_BYTE_ORDER,
                                      signed=False)
+        bytes_read = 0
+        encrypted_data = b''
+        while bytes_read < data_length:
+            temp_encrypted_data = self.socket.recv(data_length - bytes_read)
+            encrypted_data += temp_encrypted_data
+            bytes_read += len(temp_encrypted_data)
 
+        print(encrypted_data)
         # received_data = self.encryption_class.decrypt(encrypted_data)
-        encrypted_data = packet[self.DATA_LENGTH_BYTE_NUMBER:self.DATA_LENGTH_BYTE_NUMBER + data_length]
 
         if decode:
             return encrypted_data.decode()
@@ -112,6 +112,7 @@ class FileSession:
             data = self.to_transfer_chunks[thread_id].pop(0)
 
             if data is None:
+                session.transfer_data(pickle.dumps(None), encode=False)
                 break
 
             session.transfer_data(data, encode=False)
@@ -143,8 +144,14 @@ class FileSession:
 
         while True:
             data = session.receive_data(decode=False)
-            if data == b'':
-                break
+
+            try:
+                eof = pickle.loads(data)
+                if eof is None:
+                    print("must join")
+                    break
+            except PickleError:
+                pass
 
             data = (int.from_bytes(data[:self.SEQUENCE_LENGTH],
                                    byteorder=SimpleSession.DATA_LENGTH_BYTE_ORDER,
@@ -167,8 +174,9 @@ class FileSession:
 
         for thread in receive_threads:
             thread.join()
+            print("joined")
 
-        destination_filename = "/Users/sepehrjavid/Desktop/qpashm.mkv"
+        destination_filename = "/Users/sepehrjavid/Desktop/qpashm.txt"
         self.received_chunks.sort(key=lambda x: x[0])
         file = open(destination_filename, 'wb')
 
