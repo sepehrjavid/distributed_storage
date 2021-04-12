@@ -18,6 +18,7 @@ if __name__ == "__main__":
     transmitter = FileSession(server_ip_address="192.168.1.11")
     start = time()
     thread.start()
-    transmitter.transfer_file("/Users/sepehrjavid/Desktop/q.txt", "192.168.1.11")
+    sleep(0.5)
+    transmitter.transfer_file("/Users/sepehrjavid/Desktop/q.mkv", "192.168.1.11")
     thread.join()
     print(time() - start)

@@ -14,7 +14,7 @@ The transmitter in any sort of session is the server!
 
 
 class SimpleSession:
-    MTU = 10002
+    MTU = 16000
     DATA_LENGTH_BYTE_NUMBER = 2
     DATA_LENGTH_BYTE_ORDER = "big"
     MDU = MTU - DATA_LENGTH_BYTE_NUMBER
@@ -49,10 +49,10 @@ class SimpleSession:
                                            signed=False)
 
         self.socket.send(data_length + data)
-        print(data_length + data)
 
     def receive_data(self, decode=True):
         packet = self.socket.recv(self.MTU)
+        print(len(packet))
         data_length = int.from_bytes(packet[:self.DATA_LENGTH_BYTE_NUMBER],
                                      byteorder=self.DATA_LENGTH_BYTE_ORDER,
                                      signed=False)
@@ -168,7 +168,7 @@ class FileSession:
         for thread in receive_threads:
             thread.join()
 
-        destination_filename = "/Users/sepehrjavid/Desktop/qpashm.txt"
+        destination_filename = "/Users/sepehrjavid/Desktop/qpashm.mkv"
         self.received_chunks.sort(key=lambda x: x[0])
         file = open(destination_filename, 'wb')
 
