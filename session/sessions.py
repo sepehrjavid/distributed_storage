@@ -1,10 +1,8 @@
-import pickle
 import socket
 import threading
-from pickle import UnpicklingError
 from threading import Thread
+from multiprocessing import Queue
 
-from storage.storage import Storage
 
 from encryption.encryptors import RSAEncryption
 
@@ -14,7 +12,8 @@ The transmitter in any sort of session is the server!
 
 
 class SimpleSession:
-    MTU = 16000
+    MTU = 4096
+    EOF = None
     DATA_LENGTH_BYTE_NUMBER = 2
     DATA_LENGTH_BYTE_ORDER = "big"
     MDU = MTU - DATA_LENGTH_BYTE_NUMBER
@@ -42,7 +41,7 @@ class SimpleSession:
         if length != self.MDU:
             data = data + ((self.MDU - length) * b'0')
         elif length > self.MDU:
-            raise Exception("invalid MDU")
+            raise Exception(f"data length should be less than {self.MDU}")
 
         data_length = int(length).to_bytes(byteorder=self.DATA_LENGTH_BYTE_ORDER,
                                            length=self.DATA_LENGTH_BYTE_NUMBER,
@@ -51,8 +50,11 @@ class SimpleSession:
         self.socket.send(data_length + data)
 
     def receive_data(self, decode=True):
-        packet = self.socket.recv(self.MTU)
-        print(len(packet))
+        packet = self.socket.recv(self.MTU, socket.MSG_WAITALL)
+
+        if len(packet) == 0:
+            return self.EOF
+
         data_length = int.from_bytes(packet[:self.DATA_LENGTH_BYTE_NUMBER],
                                      byteorder=self.DATA_LENGTH_BYTE_ORDER,
                                      signed=False)
@@ -72,7 +74,7 @@ class SimpleSession:
 
 
 class FileSession:
-    THREAD_COUNT = 5
+    THREAD_COUNT = 2
     SEQUENCE_LENGTH = 2
     MDU = SimpleSession.MDU - SEQUENCE_LENGTH
     FILE_TRANSFER_PORT = 33224
@@ -82,6 +84,7 @@ class FileSession:
         self.received_chunks = []
         self.received_chunks_lock = threading.Lock()
         self.server_ip_address = server_ip_address
+        self.queue = Queue()
 
     def __file_reading_thread(self, file_path):
         read_sequence = 0
@@ -115,6 +118,7 @@ class FileSession:
                 break
 
             session.transfer_data(data, encode=False)
+            # print(f"sent thread_id {thread_id}", data)
 
         session.close()
 
@@ -143,7 +147,10 @@ class FileSession:
 
         while True:
             data = session.receive_data(decode=False)
-            if data == b'':
+            print(f"received thread_id {thread_id}", data)
+
+            if data == SimpleSession.EOF:
+                print("must join")
                 break
 
             data = (int.from_bytes(data[:self.SEQUENCE_LENGTH],
@@ -167,8 +174,9 @@ class FileSession:
 
         for thread in receive_threads:
             thread.join()
+            print("joined")
 
-        destination_filename = "/Users/sepehrjavid/Desktop/qpashm.mkv"
+        destination_filename = "/Users/sepehrjavid/Desktop/qpashm.txt"
         self.received_chunks.sort(key=lambda x: x[0])
         file = open(destination_filename, 'wb')
 
