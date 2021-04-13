@@ -3,8 +3,8 @@ import threading
 from threading import Thread
 from multiprocessing import Queue
 
-
 from encryption.encryptors import RSAEncryption
+
 
 '''
 The transmitter in any sort of session is the server!
