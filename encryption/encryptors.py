@@ -52,9 +52,7 @@ class RSAEncryption:
         return RSAEncryption(fernet)
 
     def decrypt(self, encrypted_data):
-        with self.lock:
-            return self.fernet.decrypt(encrypted_data)
+        return self.fernet.decrypt(encrypted_data)
 
     def encrypt(self, raw_data):
-        with self.lock:
-            return self.fernet.encrypt(raw_data)
+        return self.fernet.encrypt(raw_data)
