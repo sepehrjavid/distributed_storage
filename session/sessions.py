@@ -1,6 +1,7 @@
 import socket
 
 from encryption.encryptors import RSAEncryption
+from storage.exceptions import InvalidSessionType
 
 
 class SimpleSession:
@@ -68,8 +69,11 @@ class FileSession:
         self.source_ip_address = kwargs.get("source_ip_address")
         self.destination_ip_address = kwargs.get("destination_ip_address")
 
-    def transfer_file(self, source_file_path):
-        session = SimpleSession(ip_address=self.destination_ip_address, port_number=self.FILE_TRANSMISSION_PORT)
+    def transfer_file(self, source_file_path, session=None):
+        if session is None:
+            session = SimpleSession(ip_address=self.destination_ip_address, port_number=self.FILE_TRANSMISSION_PORT)
+        elif session.is_server:
+            raise InvalidSessionType("is_server must be False")
 
         with open(source_file_path, "rb") as file:
             while True:
@@ -82,12 +86,16 @@ class FileSession:
 
         session.close()
 
-    def receive_file(self, dest_path):
-        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server_socket.bind((self.source_ip_address, self.FILE_TRANSMISSION_PORT))
-        server_socket.listen(5)
-        client_socket, addr = server_socket.accept()
-        session = SimpleSession(input_socket=client_socket, is_server=True)
+    def receive_file(self, dest_path, session=None, replication_list=None):
+        if session is None:
+            server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            server_socket.bind((self.source_ip_address, self.FILE_TRANSMISSION_PORT))
+            server_socket.listen(5)
+            client_socket, addr = server_socket.accept()
+            session = SimpleSession(input_socket=client_socket, is_server=True)
+            server_socket.close()
+        elif not session.is_server:
+            raise InvalidSessionType("Is server must be True")
 
         with open(dest_path, "wb") as file:
             data = session.receive_data(decode=False)
@@ -96,4 +104,3 @@ class FileSession:
                 data = session.receive_data(decode=False)
 
         session.close()
-        server_socket.close()

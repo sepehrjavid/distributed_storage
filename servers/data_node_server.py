@@ -1,3 +1,5 @@
+from servers.valid_messages import CREATE_CHUNK, DELETE_CHUNK, INVALID_METADATA
+from session.sessions import SimpleSession, FileSession
 from singleton.singleton import Singleton
 from threading import Thread, Lock
 from time import time, sleep
@@ -46,7 +48,7 @@ class DataNodeServer(metaclass=Singleton):
                 "socket": client_socket
             }
 
-            client_data["thread"] = ClientThread(client_data)
+            client_data["thread"] = ClientThread(client_data, self.storage)
             client_data["thread"].start()
 
             with self.active_clients_lock:
@@ -54,9 +56,23 @@ class DataNodeServer(metaclass=Singleton):
 
 
 class ClientThread(Thread):
-    def __init__(self, client_data, *args, **kwargs):
+    def __init__(self, client_data, storage, *args, **kwargs):
         super(ClientThread, self).__init__(*args, **kwargs)
         self.client_data = client_data
+        self.storage = storage
 
     def run(self):
-        pass
+        session = SimpleSession(input_socket=self.client_data.get("socket"), is_server=True)
+        command = session.receive_data()
+        if command == CREATE_CHUNK:
+            meta_data = session.receive_data()
+            if self.storage.is_valid_metadata(meta_data):
+                destination_file_path = self.storage.get_new_file_path()
+                file_session = FileSession()
+                file_session.receive_file(destination_file_path,
+                                          replication_list=self.storage.get_replication_data_nodes())
+            else:
+                session.transfer_data(INVALID_METADATA)
+
+        elif command == DELETE_CHUNK:
+            pass

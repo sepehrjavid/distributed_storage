@@ -12,3 +12,8 @@ class InvalidFileChunk(Exception):
 
 class DataNodeNotSaved(Exception):
     message = "The passed data node is not saved in the database"
+
+
+class InvalidSessionType(Exception):
+    def __init__(self, message):
+        self.message = message

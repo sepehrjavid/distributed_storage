@@ -9,6 +9,7 @@ from storage.exceptions import InvalidFilePath, ChunkNotFound, DataNodeNotSaved
 class Storage(metaclass=Singleton):
     CHUNK_SIZE = 64 * (10 ** 6)
     REPLICATION_FACTOR = 4
+    METADATA_MANDATORY_FIELDS = ["title", "sequence", "chunk_size", "permission"]
 
     def __init__(self, storage_path, current_data_node):
         self.storage_path = storage_path
@@ -95,3 +96,11 @@ class Storage(metaclass=Singleton):
             i += 1
 
         return result
+
+    @staticmethod
+    def is_valid_metadata(metadata):
+        meta_data_keys = metadata.keys()
+        for key in Storage.METADATA_MANDATORY_FIELDS:
+            if key not in meta_data_keys:
+                return False
+        return True
