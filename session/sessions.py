@@ -1,7 +1,7 @@
 import socket
 
 from encryption.encryptors import RSAEncryption
-from storage.exceptions import InvalidSessionType
+from session.exceptions import InvalidSessionType
 
 
 class SimpleSession:

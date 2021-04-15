@@ -63,6 +63,7 @@ class Storage(metaclass=Singleton):
         if kwargs.get("local_path") is not None and self.is_valid_path(kwargs.get("local_path")):
             chunk = ChunkMetadata(**kwargs, data_node=self.current_data_node)
             chunk.save()
+            # TODO inform the rest of the nodes
         else:
             raise InvalidFilePath
 

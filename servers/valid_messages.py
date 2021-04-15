@@ -1,3 +1,4 @@
+MESSAGE_SEPARATOR = "-"
 CREATE_FILE = "crf"
 DELETE_FILE = "rmf"
 CREATE_CHUNK = "crc-{title}-{sequence}-{chunk_size}-{permission}"
