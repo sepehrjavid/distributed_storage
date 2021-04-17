@@ -1,5 +1,5 @@
 from meta_data.models import DataNode, ChunkMetadata
-from servers.valid_messages import CREATE_CHUNK, DELETE_CHUNK, INVALID_METADATA, MESSAGE_SEPARATOR, OUT_OF_SPACE
+from servers.valid_messages import CREATE_CHUNK, DELETE_CHUNK, INVALID_METADATA, MESSAGE_SEPARATOR, OUT_OF_SPACE, ACCEPT
 from session.sessions import SimpleSession, FileSession
 from singleton.singleton import Singleton
 from threading import Thread, Lock
@@ -83,9 +83,11 @@ class ClientThread(Thread):
                     session.transfer_data(OUT_OF_SPACE)
                     session.close()
                     return
+
+                session.transfer_data(ACCEPT)
                 destination_file_path = self.storage.get_new_file_path()
                 file_session = FileSession()
-                file_session.receive_file(destination_file_path,
+                file_session.receive_file(destination_file_path, session=session,
                                           replication_list=self.storage.get_replication_data_nodes())
                 self.storage.add_chunk(sequence=meta_data.get("sequence"), title=meta_data.get("title"),
                                        permission=meta_data.get("permission"), local_path=destination_file_path,

@@ -22,21 +22,27 @@ class Storage(metaclass=Singleton):
         return self.storage_path in path and os.path.isfile(path)
 
     def choose_data_node_to_save(self, file_size):
-        required_node_numbers = file_size // self.CHUNK_SIZE
-        if file_size % self.CHUNK_SIZE != 0:
-            required_node_numbers += 1
-
         all_nodes = DataNode.fetch_all()
 
-        if len(all_nodes) >= required_node_numbers:
-            return all_nodes[:required_node_numbers]
+        if sum([x.available_byte_size for x in all_nodes]) < file_size:
+            return None
 
-        ratio = required_node_numbers // len(all_nodes)
-        if required_node_numbers % len(all_nodes) != 0:
-            ratio += 1
+        assigned_nodes = []
+        i = 0
+        bytes_assigned = 0
+        while bytes_assigned < file_size:
+            data_node = all_nodes[i % len(all_nodes)]
+            if data_node.available_byte_size >= self.CHUNK_SIZE:
+                bytes_assigned += self.CHUNK_SIZE
+                data_node.available_byte_size -= self.CHUNK_SIZE
+                assigned_nodes.append((self.CHUNK_SIZE, data_node))
+            else:
+                bytes_assigned += data_node.available_byte_size
+                data_node.available_byte_size = 0
+                assigned_nodes.append((data_node.available_byte_size, data_node))
+            i += 1
 
-        all_nodes = ratio * all_nodes
-        return all_nodes[:required_node_numbers]
+        return assigned_nodes
 
     def get_new_file_path(self):
         filepath = self.storage_path + str(uuid.uuid4())

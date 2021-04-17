@@ -6,7 +6,7 @@ from time import time
 import parse
 
 from broadcast.servers import SimpleBroadcastServer
-from servers.valid_messages import CREATE_FILE, DELETE_FILE, MESSAGE_SEPARATOR
+from servers.valid_messages import CREATE_FILE, DELETE_FILE, MESSAGE_SEPARATOR, OUT_OF_SPACE, ACCEPT
 from session.exceptions import PeerTimeOutException
 from session.sessions import SimpleSession
 from singleton.singleton import Singleton
@@ -87,7 +87,12 @@ class ClientThread(Thread):
     def create_file(self, session, command):
         file_size = int(dict(parse.parse(CREATE_FILE, command).named)["total_size"])
         data_nodes = self.storage.choose_data_node_to_save(file_size)
-        session.transfer_data(pickle.dumps(data_nodes), encode=False)
+        if data_nodes is None:
+            print("out of space")
+            session.transfer_data(OUT_OF_SPACE)
+        else:
+            session.transfer_data(ACCEPT)
+            session.transfer_data(pickle.dumps(data_nodes), encode=False)
         session.close()
 
     def delete_file(self, session):
