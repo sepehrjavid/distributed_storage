@@ -70,7 +70,7 @@ class ClientThread(Thread):
         command = session.receive_data()
         if command.split(MESSAGE_SEPARATOR)[0] == CREATE_CHUNK.split(MESSAGE_SEPARATOR)[0]:
             try:
-                meta_data = dict(parse.parse(CREATE_CHUNK, command).fixed)
+                meta_data = dict(parse.parse(CREATE_CHUNK, command).named)
             except ValueError:
                 session.transfer_data(INVALID_METADATA)
                 session.close()

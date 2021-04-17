@@ -3,8 +3,10 @@ from threading import Thread, Lock
 from time import sleep
 from time import time
 
+import parse
+
 from broadcast.servers import SimpleBroadcastServer
-from servers.valid_messages import CREATE_FILE, DELETE_FILE
+from servers.valid_messages import CREATE_FILE, DELETE_FILE, MESSAGE_SEPARATOR
 from session.exceptions import PeerTimeOutException
 from session.sessions import SimpleSession
 from singleton.singleton import Singleton
@@ -12,7 +14,7 @@ from singleton.singleton import Singleton
 
 class BroadcastServer(SimpleBroadcastServer, metaclass=Singleton):
     MAXIMUM_CLIENT_ALLOWED = 30
-    MAXIMUM_CLIENT_HANDLE_TIME = 5 * 60
+    MAXIMUM_CLIENT_HANDLE_TIME = 3 * 60
     CONTROLLER_INTERVAL = 10
     BROADCAST_SERVER_PORT_NUMBER = 54222
     CLIENT_PORT_NUMBER = BROADCAST_SERVER_PORT_NUMBER
@@ -28,13 +30,17 @@ class BroadcastServer(SimpleBroadcastServer, metaclass=Singleton):
         with self.active_clients_lock:
             if len(self.active_clients) >= self.MAXIMUM_CLIENT_ALLOWED:
                 return
+            for client in self.active_clients:
+                if client["ip_address"] == source_address:
+                    return
 
         client_data = {
             "ip_address": source_address[0],
-            "start_time": time()
+            "start_time": time(),
+            "command": data.decode()
         }
 
-        client_data["thread"] = ClientThread(client_data)
+        client_data["thread"] = ClientThread(client_data, self.storage)
         client_data["thread"].start()
 
         with self.active_clients_lock:
@@ -66,21 +72,22 @@ class ClientThread(Thread):
 
     def run(self):
         try:
-            session = SimpleSession(self.client_data.get("ip_address"), BroadcastServer.CLIENT_PORT_NUMBER)
+            session = SimpleSession(ip_address=self.client_data.get("ip_address"),
+                                    port_number=BroadcastServer.CLIENT_PORT_NUMBER)
         except PeerTimeOutException:
             return
 
-        command = session.receive_data()
+        command = self.client_data.get("command")
 
-        if command == CREATE_FILE:
-            self.create_file(session)
+        if command.split(MESSAGE_SEPARATOR)[0] == CREATE_FILE.split(MESSAGE_SEPARATOR)[0]:
+            self.create_file(session, command)
         elif command == DELETE_FILE:
             self.delete_file(session)
 
-    def create_file(self, session):
-        file_spec = session.receive_data()
-        data_nodes = self.storage.choose_data_node_to_save()
-        session.transfer_data(pickle.dumps(data_nodes))
+    def create_file(self, session, command):
+        file_size = int(dict(parse.parse(CREATE_FILE, command).named)["total_size"])
+        data_nodes = self.storage.choose_data_node_to_save(file_size)
+        session.transfer_data(pickle.dumps(data_nodes), encode=False)
         session.close()
 
     def delete_file(self, session):
