@@ -37,6 +37,7 @@ class DataNodeServer(metaclass=Singleton):
             self.__remove_expired_clients()
 
     def run(self):
+        print("Data node server started")
         self.controller_thread = Thread(target=self.__active_client_controller_thread, args=[])
         self.controller_thread.start()
         self.server_socket.listen(5)
