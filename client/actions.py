@@ -69,4 +69,5 @@ class ClientActions:
 
         session = SimpleSession(input_socket=client_socket, is_server=True)
         data_nodes = pickle.loads(session.receive_data(decode=False))
+        print(data_nodes)
         session.close()

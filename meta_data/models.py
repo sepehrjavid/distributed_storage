@@ -1,9 +1,9 @@
+import sqlite3
+
 from meta_data.database import MetaDatabase
 
 
 class DataNode:
-    db = MetaDatabase()
-
     def __init__(self, **kwargs):
         self.id = kwargs.get("id")
         self.ip_address = kwargs.get("ip_address")
@@ -12,18 +12,24 @@ class DataNode:
         self.last_seen = kwargs.get("last_seen")
 
     def __create(self):
-        connection = self.db.connection
-        self.id = connection.cursor().execute(
+        connection = sqlite3.connect(MetaDatabase.DATABASE_PATH)
+        cursor = connection.cursor()
+
+        self.id = cursor.execute(
             "INSERT INTO data_node (ip_address, rack_number, available_byte_size) VALUES (?,?,?);",
             (self.ip_address, self.rack_number, self.available_byte_size)
         ).lastrowid
         connection.commit()
+        connection.close()
 
     def __update(self):
-        connection = self.db.connection
-        connection.cursor().execute("UPDATE data_node SET available_byte_size=?, last_seen=? WHERE id=?",
-                                    (self.available_byte_size, self.last_seen, self.id))
+        connection = sqlite3.connect(MetaDatabase.DATABASE_PATH)
+        cursor = connection.cursor()
+
+        cursor.execute("UPDATE data_node SET available_byte_size=?, last_seen=? WHERE id=?",
+                       (self.available_byte_size, self.last_seen, self.id))
         connection.commit()
+        connection.close()
 
     def save(self):
         if self.id is None:
@@ -32,9 +38,12 @@ class DataNode:
             self.__update()
 
     def delete(self, **kwargs):
-        connection = self.db.connection
-        connection.cursor().execute("DELETE FROM data_node WHERE id = ?;", (self.id,))
+        connection = sqlite3.connect(MetaDatabase.DATABASE_PATH)
+        cursor = connection.cursor()
+
+        cursor.execute("DELETE FROM data_node WHERE id = ?;", (self.id,))
         connection.commit()
+        connection.close()
 
     def __str__(self):
         return f"{self.id} | {self.ip_address} | {self.rack_number} | {self.available_byte_size} | {self.last_seen}"
@@ -44,9 +53,13 @@ class DataNode:
 
     @staticmethod
     def fetch_all():
-        connection = DataNode.db.connection
-        sql_result = connection.cursor().execute(
+        connection = sqlite3.connect(MetaDatabase.DATABASE_PATH)
+        cursor = connection.cursor()
+
+        sql_result = cursor.execute(
             "SELECT * FROM data_node ORDER BY available_byte_size DESC;").fetchall()
+
+        connection.close()
 
         data_nodes = []
         for data_node in sql_result:
@@ -57,9 +70,13 @@ class DataNode:
 
     @staticmethod
     def fetch_by_ip(ip_address):
-        connection = DataNode.db.connection
-        sql_result = connection.cursor().execute("SELECT * FROM data_node WHERE ip_address=?;",
-                                                 (ip_address,)).fetchall()
+        connection = sqlite3.connect(MetaDatabase.DATABASE_PATH)
+        cursor = connection.cursor()
+
+        sql_result = cursor.execute("SELECT * FROM data_node WHERE ip_address=?;",
+                                    (ip_address,)).fetchall()
+        connection.close()
+
         if len(sql_result) == 0:
             return None
 
@@ -69,9 +86,14 @@ class DataNode:
 
     @staticmethod
     def fetch_by_id(id):
-        connection = DataNode.db.connection
-        sql_result = connection.cursor().execute("SELECT * FROM data_node WHERE id=?;",
-                                                 (id,)).fetchall()
+        connection = sqlite3.connect(MetaDatabase.DATABASE_PATH)
+        cursor = connection.cursor()
+
+        sql_result = cursor.execute("SELECT * FROM data_node WHERE id=?;",
+                                    (id,)).fetchall()
+
+        connection.close()
+
         if len(sql_result) == 0:
             return None
 
@@ -81,8 +103,6 @@ class DataNode:
 
 
 class ChunkMetadata:
-    db = MetaDatabase()
-
     def __init__(self, **kwargs):
         self.id = kwargs.get("id")
         self.sequence = kwargs.get("sequence")
@@ -93,20 +113,26 @@ class ChunkMetadata:
         self.data_node = kwargs.get("data_node")
 
     def __create(self):
-        connection = self.db.connection
-        self.id = connection.cursor().execute(
+        connection = sqlite3.connect(MetaDatabase.DATABASE_PATH)
+        cursor = connection.cursor()
+
+        self.id = cursor.execute(
             """INSERT INTO chunk_metadata (sequence, title, local_path, chunk_size, permission, data_node_id)
             VALUES (?,?,?,?,?,?);""",
             (self.sequence, self.title, self.local_path, self.chunk_size, self.permission, self.data_node.id)
         ).lastrowid
         connection.commit()
+        connection.close()
 
     def __update(self):
-        connection = self.db.connection
-        connection.cursor().execute(
+        connection = sqlite3.connect(MetaDatabase.DATABASE_PATH)
+        cursor = connection.cursor()
+
+        cursor.execute(
             "UPDATE data_node SET sequence=?, title=?, local_path=?, chunk_size=?, data_node_id=? WHERE id=?;",
             (self.sequence, self.title, self.local_path, self.chunk_size, self.data_node.id, self.id))
         connection.commit()
+        connection.close()
 
     def save(self):
         if self.id is None:
@@ -115,15 +141,22 @@ class ChunkMetadata:
             self.__update()
 
     def delete(self, **kwargs):
-        connection = self.db.connection
-        connection.cursor().execute("DELETE FROM chunk_metadata WHERE id = ?;", (self.id,))
+        connection = sqlite3.connect(MetaDatabase.DATABASE_PATH)
+        cursor = connection.cursor()
+
+        cursor.execute("DELETE FROM chunk_metadata WHERE id = ?;", (self.id,))
         connection.commit()
+        connection.close()
 
     @staticmethod
     def fetch_by_title_and_permission(title, permission):
-        connection = ChunkMetadata.db.connection
-        sql_result = connection.cursor().execute("SELECT * FROM chunk_metadata WHERE permission=? AND title=?;",
-                                                 (permission, title)).fetchall()
+        connection = sqlite3.connect(MetaDatabase.DATABASE_PATH)
+        cursor = connection.cursor()
+
+        sql_result = cursor.execute("SELECT * FROM chunk_metadata WHERE permission=? AND title=?;",
+                                    (permission, title)).fetchall()
+
+        connection.close()
         if len(sql_result) == 0:
             return None
 
