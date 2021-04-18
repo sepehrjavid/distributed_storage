@@ -49,10 +49,16 @@ class Storage(metaclass=Singleton):
 
         return assigned_nodes
 
-    def get_new_file_path(self):
-        filepath = self.storage_path + str(uuid.uuid4())
-        while os.path.isfile(filepath):
+    def get_new_file_path(self, extension=None):
+        if extension is None:
             filepath = self.storage_path + str(uuid.uuid4())
+        else:
+            filepath = self.storage_path + str(uuid.uuid4()) + "." + extension
+        while os.path.isfile(filepath):
+            if extension is None:
+                filepath = self.storage_path + str(uuid.uuid4())
+            else:
+                filepath = self.storage_path + str(uuid.uuid4()) + "." + extension
 
         return filepath
 
@@ -83,6 +89,7 @@ class Storage(metaclass=Singleton):
             os.remove(path)
 
     def get_replication_data_nodes(self, chunk_size):
+        return None
         all_data_nodes = DataNode.fetch_all()
         other_data_nodes = list(filter(lambda x: x.id != self.current_data_node.id, all_data_nodes))
         racks = {}

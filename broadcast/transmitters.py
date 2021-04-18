@@ -17,6 +17,4 @@ class SimpleTransmitter:
         else:
             encoded = data
 
-        print(encoded)
-
         self.socket.sendto(encoded, (self.ip_address, self.port_number))

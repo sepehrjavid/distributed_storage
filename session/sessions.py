@@ -11,6 +11,7 @@ class SimpleSession:
     DATA_LENGTH_BYTE_ORDER = "big"
 
     def __init__(self, is_server=False, **kwargs):
+        self.is_server = is_server
         if kwargs.get("input_socket"):
             self.socket = kwargs.get("input_socket")
         else:
@@ -75,8 +76,6 @@ class FileSession:
     def transfer_file(self, source_file_path, session=None):
         if session is None:
             session = SimpleSession(ip_address=self.destination_ip_address, port_number=self.FILE_TRANSMISSION_PORT)
-        elif session.is_server:
-            raise InvalidSessionType("is_server must be False")
 
         with open(source_file_path, "rb") as file:
             while True:
@@ -97,8 +96,6 @@ class FileSession:
             client_socket, addr = server_socket.accept()
             session = SimpleSession(input_socket=client_socket, is_server=True)
             server_socket.close()
-        elif not session.is_server:
-            raise InvalidSessionType("Is server must be True")
 
         with open(dest_path, "wb") as file:
             data = session.receive_data(decode=False)

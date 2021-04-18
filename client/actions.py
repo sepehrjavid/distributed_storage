@@ -58,7 +58,7 @@ class ClientActions:
 
     def __send_chunk(self, data_node: DataNode, file_path, sequence, chunk_size):
         session = SimpleSession(ip_address=data_node.ip_address, port_number=DataNodeServer.DATA_NODE_PORT_NUMBER)
-        permission_hash = hashlib.md5(self.username.encode())
+        permission_hash = hashlib.md5(self.username.encode()).hexdigest()
         session.transfer_data(CREATE_CHUNK.format(title=ntpath.basename(file_path), sequence=sequence,
                                                   chunk_size=chunk_size, permission=permission_hash))
         response = session.receive_data()
@@ -92,6 +92,9 @@ class ClientActions:
             return
         elif response == ACCEPT:
             chunk_instructions = pickle.loads(session.receive_data(decode=False))
+        else:
+            print("Something went wrong!")
+            return
 
         session.close()
 
@@ -101,6 +104,7 @@ class ClientActions:
         """
 
         chunk_threads = []
+        print("Sending file...")
 
         for i in range(len(chunk_instructions)):
             chunk_threads.append(Thread(target=self.__send_chunk,
