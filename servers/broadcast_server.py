@@ -81,6 +81,8 @@ class ClientThread(Thread):
 
         if command.split(MESSAGE_SEPARATOR)[0] == CREATE_FILE.split(MESSAGE_SEPARATOR)[0]:
             self.create_file(session, command)
+        elif command.split(MESSAGE_SEPARATOR)[0] == CREATE_FILE.split(MESSAGE_SEPARATOR)[0]:
+            pass
         elif command == DELETE_FILE:
             self.delete_file(session)
 
@@ -96,4 +98,7 @@ class ClientThread(Thread):
         session.close()
 
     def delete_file(self, session):
+        pass
+
+    def retrieve_file(self, session, command):
         pass

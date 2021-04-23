@@ -1,6 +1,6 @@
 MESSAGE_SEPARATOR = "-"
 CREATE_FILE = "crf-{total_size}"
-DELETE_FILE = "rmf"
+DELETE_FILE = "rmf-{title}-{permission}"
 CREATE_CHUNK = "crc-{title}-{sequence}-{chunk_size}-{permission}"
 DELETE_CHUNK = "rmc"
 REPLICATE = "rpt-{title}-{sequence}-{chunk_size}-{permission}"
