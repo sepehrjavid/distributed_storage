@@ -25,6 +25,12 @@ class User:
         self.id = None
 
     @staticmethod
+    def fetch_by_id(id, db: MetaDatabase):
+        result = db.fetch("SELECT * FROM users WHERE id=?;", id)[0]
+
+        return User(db=db, id=result[0], username=result[1], password=result[2])
+
+    @staticmethod
     def fetch_all(db: MetaDatabase):
         result = db.fetch("SELECT * FROM users;")
 

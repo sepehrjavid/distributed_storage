@@ -10,7 +10,6 @@ class File:
         self.extension = kwargs.get("extension")
         self.is_complete = False if kwargs.get("is_complete") is None else kwargs.get("is_complete")
         self.directory_id = kwargs.get("directory_id")
-        self.permission = kwargs.get("permission")
 
     def save(self):
         if self.id is None:
@@ -34,3 +33,11 @@ class File:
     @property
     def directory(self):
         return Directory.fetch_by_id(self.directory_id, self.db)
+
+    @staticmethod
+    def fetch_by_id(id, db: MetaDatabase):
+        result = db.fetch("SELECT * FROM file WHERE id=?;", id)[0]
+
+        temp = True if result[3] == 1 else False
+
+        return File(db=db, id=result[0], title=result[1], extension=result[2], is_complete=temp, directory_id=result[4])

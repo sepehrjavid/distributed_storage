@@ -7,7 +7,6 @@ class Directory:
         self.id = kwargs.get("id")
         self.title = kwargs.get("title")
         self.parent_directory_id = kwargs.get("parent_directory_id")
-        self.permission = kwargs.get("permission")
 
     def save(self):
         if self.id is None:

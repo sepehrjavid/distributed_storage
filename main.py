@@ -17,9 +17,11 @@ def data_node_server(ip_address, storage):
 if __name__ == "__main__":
     # MetaDatabase.initialize_tables()
     db = MetaDatabase()
-    file = File(db=db, title="main2", extension="py", directory_id=2)
+    file = File.fetch_by_id(1, db)
+    print(file.is_complete)
+    file.is_complete = True
     file.save()
-    print(file.directory.title)
+    print(File.fetch_by_id(1, db).is_complete)
 
     # storage = Storage("/Users/sepehrjavid/Desktop/", DataNode.fetch_by_id(1))
     # data_node_server_thread = Thread(target=data_node_server, args=["192.168.1.13", storage])
