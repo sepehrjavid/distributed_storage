@@ -32,6 +32,7 @@ class MetaDatabase:
                                             extension VARCHAR(10),
                                             is_complete INTEGER NOT NULL DEFAULT 0,
                                             directory_id INTEGER NOT NULL,
+                                            sequence_num INTEGER NOT NULL,
                                             FOREIGN KEY (directory_id) REFERENCES directory (id)
                                                 );""")
 

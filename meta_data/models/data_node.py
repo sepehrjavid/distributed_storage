@@ -25,7 +25,7 @@ class DataNode:
         else:
             self.__update()
 
-    def delete(self, **kwargs):
+    def delete(self):
         self.db.execute("DELETE FROM data_node WHERE id = ?;", self.id)
 
     def __str__(self):

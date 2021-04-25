@@ -1,5 +1,5 @@
 from meta_data.models.data_node import DataNode
-from meta_data.models.chunk import ChunkMetadata
+from meta_data.models.chunk import Chunk
 import os
 import uuid
 
@@ -64,7 +64,7 @@ class Storage(metaclass=Singleton):
         return filepath
 
     def remove_chunk(self, title, permission):
-        chunk = ChunkMetadata.fetch_by_title_and_permission(title, permission)
+        chunk = Chunk.fetch_by_title_and_permission(title, permission)
         if chunk is None:
             raise ChunkNotFound
 
@@ -79,7 +79,7 @@ class Storage(metaclass=Singleton):
 
     def add_chunk(self, **kwargs):
         if kwargs.get("local_path") is not None and self.is_valid_path(kwargs.get("local_path")):
-            chunk = ChunkMetadata(**kwargs, data_node=self.current_data_node)
+            chunk = Chunk(**kwargs, data_node=self.current_data_node)
             chunk.save()
             # TODO inform the rest of the nodes
         else:

@@ -3,7 +3,7 @@ from meta_data.models.data_node import DataNode
 from meta_data.models.file import File
 
 
-class ChunkMetadata:
+class Chunk:
     def __init__(self, db: MetaDatabase, **kwargs):
         self.db = db
         self.id = kwargs.get("id")
@@ -28,7 +28,7 @@ class ChunkMetadata:
             self.__update()
 
     def delete(self):
-        self.db.execute("DELETE FROM chunk_metadata WHERE id = ?;", self.id)
+        self.db.execute("DELETE FROM chunk WHERE id = ?;", self.id)
 
     @property
     def file(self):

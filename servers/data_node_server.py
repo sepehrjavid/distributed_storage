@@ -1,4 +1,4 @@
-from meta_data.models.chunk import ChunkMetadata
+from meta_data.models.chunk import Chunk
 from servers.valid_messages import (CREATE_CHUNK, DELETE_CHUNK, INVALID_METADATA, MESSAGE_SEPARATOR, OUT_OF_SPACE,
                                     ACCEPT, DUPLICATE_FILE_FOR_USER)
 from session.sessions import SimpleSession, FileSession
@@ -79,8 +79,8 @@ class ClientThread(Thread):
                 return
 
             if self.storage.is_valid_metadata(meta_data):
-                possible_chunk = ChunkMetadata.fetch_by_title_and_permission(title=meta_data.get("title"),
-                                                                             permission=meta_data.get("permission"))
+                possible_chunk = Chunk.fetch_by_title_and_permission(title=meta_data.get("title"),
+                                                                     permission=meta_data.get("permission"))
                 if possible_chunk is not None:
                     session.transfer_data(DUPLICATE_FILE_FOR_USER)
                     session.close()

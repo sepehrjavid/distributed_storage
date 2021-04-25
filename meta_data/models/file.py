@@ -10,6 +10,7 @@ class File:
         self.extension = kwargs.get("extension")
         self.is_complete = False if kwargs.get("is_complete") is None else kwargs.get("is_complete")
         self.directory_id = kwargs.get("directory_id")
+        self.sequence_num = kwargs.get("sequence_num")
 
     def save(self):
         if self.id is None:
@@ -19,8 +20,9 @@ class File:
 
     def __create(self):
         temp = 1 if self.is_complete else 0
-        self.id = self.db.create("INSERT INTO file (title, extension, is_complete, directory_id) VALUES (?, ?, ?, ?);",
-                                 self.title, self.extension, temp, self.directory_id)
+        self.id = self.db.create("""INSERT INTO file (title, extension, is_complete, directory_id, sequence_num) VALUES
+                                (?, ?, ?, ?, ?);""",
+                                 self.title, self.extension, temp, self.directory_id, self.sequence_num)
 
     def __update(self):
         temp = 1 if self.is_complete else 0
@@ -40,4 +42,5 @@ class File:
 
         temp = True if result[3] == 1 else False
 
-        return File(db=db, id=result[0], title=result[1], extension=result[2], is_complete=temp, directory_id=result[4])
+        return File(db=db, id=result[0], title=result[1], extension=result[2], is_complete=temp, directory_id=result[4],
+                    sequence_num=result[5])
