@@ -1,4 +1,5 @@
-from meta_data.models import DataNode, ChunkMetadata
+from meta_data.models.data_node import DataNode
+from meta_data.models.chunk import ChunkMetadata
 import os
 import uuid
 

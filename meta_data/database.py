@@ -22,7 +22,7 @@ class MetaDatabase:
         cursor.execute("""CREATE TABLE IF NOT EXISTS directory (
                                                     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                                                     title VARCHAR(200) NOT NULL,
-                                                    parent_directory_id INTEGER NOT NULL,
+                                                    parent_directory_id INTEGER,
                                                     FOREIGN KEY (parent_directory_id) REFERENCES directory (id)
                                                         );""")
 
@@ -37,13 +37,15 @@ class MetaDatabase:
 
         cursor.execute("""CREATE TABLE IF NOT EXISTS permission (
                                             id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-                                            perm VARCHAR(2) NOT NULL UNIQUE,
+                                            perm VARCHAR(2) NOT NULL,
                                             file_id INTEGER,
                                             directory_id INTEGER,
                                             user_id INTEGER NOT NULL,
                                             FOREIGN KEY (user_id) REFERENCES users (id),
                                             FOREIGN KEY (file_id) REFERENCES file (id),
-                                            FOREIGN KEY (directory_id) REFERENCES directory (id) 
+                                            FOREIGN KEY (directory_id) REFERENCES directory (id),
+                                            UNIQUE (user_id, directory_id),
+                                            UNIQUE (user_id, file_id)
                                                 );""")
 
         cursor.execute("""CREATE TABLE IF NOT EXISTS data_node (
