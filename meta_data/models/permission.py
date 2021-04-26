@@ -45,3 +45,6 @@ class Permission:
     @property
     def user(self):
         return User.fetch_by_id(self.user_id, self.db)
+
+    def __del__(self):
+        self.db.close()

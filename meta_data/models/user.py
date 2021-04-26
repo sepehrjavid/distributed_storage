@@ -39,3 +39,6 @@ class User:
             users.append(User(db=db, id=user[0], username=user[1], password=user[2]))
 
         return users
+
+    def __del__(self):
+        self.db.close()

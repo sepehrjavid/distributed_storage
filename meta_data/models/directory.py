@@ -49,5 +49,7 @@ class Directory:
             directories.append(
                 Directory(db=db, id=data[0], title=data[1], parent_directory_id=data[2],
                           permission={"username": username, "perm": data[3]}))
-
         return directories
+
+    def __del__(self):
+        self.db.close()

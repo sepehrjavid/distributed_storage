@@ -1,3 +1,4 @@
+from meta_data.database import MetaDatabase
 from meta_data.models.data_node import DataNode
 from meta_data.models.chunk import Chunk
 import os
@@ -14,7 +15,8 @@ class Storage(metaclass=Singleton):
 
     def __init__(self, storage_path, current_data_node):
         self.storage_path = storage_path
-        if isinstance(current_data_node, DataNode) and DataNode.fetch_by_id(current_data_node.id) is not None:
+        self.db = MetaDatabase()
+        if isinstance(current_data_node, DataNode) and DataNode.fetch_by_id(current_data_node.id, self.db) is not None:
             self.current_data_node = current_data_node
         else:
             raise DataNodeNotSaved

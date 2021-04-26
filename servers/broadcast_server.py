@@ -49,8 +49,7 @@ class BroadcastServer(SimpleBroadcastServer, metaclass=Singleton):
     def __remove_expired_clients(self):
         with self.active_clients_lock:
             for client in self.active_clients:
-                if time() - client["start_time"] >= self.MAXIMUM_CLIENT_HANDLE_TIME:
-                    # TODO kill client thread
+                if not client["thread"].is_alive() or time() - client["start_time"] >= self.MAXIMUM_CLIENT_HANDLE_TIME:
                     self.active_clients.remove(client)
 
     def __active_client_controller_thread(self):

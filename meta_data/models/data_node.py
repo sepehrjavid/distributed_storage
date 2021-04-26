@@ -40,7 +40,7 @@ class DataNode:
 
         data_nodes = []
         for data_node in sql_result:
-            data_nodes.append(DataNode(id=data_node[0], ip_address=data_node[1], rack_number=data_node[2],
+            data_nodes.append(DataNode(db=db, id=data_node[0], ip_address=data_node[1], rack_number=data_node[2],
                                        available_byte_size=data_node[3], last_seen=float(data_node[4])))
 
         return data_nodes
@@ -53,7 +53,7 @@ class DataNode:
             return None
 
         data_node = sql_result[0]
-        return DataNode(id=data_node[0], ip_address=data_node[1], rack_number=data_node[2],
+        return DataNode(db=db, id=data_node[0], ip_address=data_node[1], rack_number=data_node[2],
                         available_byte_size=data_node[3], last_seen=float(data_node[4]))
 
     @staticmethod
@@ -64,5 +64,8 @@ class DataNode:
             return None
 
         data_node = sql_result[0]
-        return DataNode(id=data_node[0], ip_address=data_node[1], rack_number=data_node[2],
+        return DataNode(db=db, id=data_node[0], ip_address=data_node[1], rack_number=data_node[2],
                         available_byte_size=data_node[3], last_seen=float(data_node[4]))
+
+    def __del__(self):
+        self.db.close()

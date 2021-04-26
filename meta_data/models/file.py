@@ -44,3 +44,6 @@ class File:
 
         return File(db=db, id=result[0], title=result[1], extension=result[2], is_complete=temp, directory_id=result[4],
                     sequence_num=result[5])
+
+    def __del__(self):
+        self.db.close()
