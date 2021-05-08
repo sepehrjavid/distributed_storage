@@ -14,14 +14,17 @@ from session.sessions import SimpleSession
 
 class Main:
     CONFIG_FILE_PATH = "dfs.conf"
-    SOCKET_ACCEPT_TIMEOUT = 2
+    SOCKET_ACCEPT_TIMEOUT = 3
     JOIN_TRY_LIMIT = 3
 
-    def __init__(self, ip_address, rack_number, available_byte_size):
+    def __init__(self, ip_network, ip_address, rack_number, available_byte_size):
         self.ip_address = ip_address
         self.rack_number = rack_number
         self.available_byte_size = available_byte_size
-        self.broadcast_address = ipaddress.ip_network(self.ip_address).broadcast_address
+        self.ip_network = ip_network
+        self.broadcast_address = str(ipaddress.ip_network(self.ip_network).broadcast_address)
+        self.broadcast_server = None
+        self.peer_controller = None
         self.peer_transmitter = SimpleTransmitter(broadcast_address=self.broadcast_address,
                                                   port_number=PeerBroadcastServer.PORT_NUMBER)
 
@@ -64,9 +67,10 @@ class Main:
         return PeerController(self.ip_address, [peer_session, suggested_peer_session])
 
     def run(self):
-        self.join_network()
-        while True:
-            sleep(1)
+        self.peer_controller = self.join_network()
+        self.broadcast_server = PeerBroadcastServer(ip_address=self.broadcast_address,
+                                                    peer_controller=self.peer_controller)
+        self.broadcast_server.start()
 
 
 def data_node_server(ip_address, storage):
@@ -75,6 +79,8 @@ def data_node_server(ip_address, storage):
 
 
 if __name__ == "__main__":
-    main = Main(ip_address=input("ip address: "), available_byte_size=int(input("available byte size: ")),
-                rack_number=int(input("rack number: ")))
+    # main = Main(ip_address=input("ip address: "), available_byte_size=int(input("available byte size: ")),
+    #             rack_number=int(input("rack number: ")))
+
+    main = Main(ip_address="192.168.1.11", ip_network="192.168.1.0/24", available_byte_size=200, rack_number=1)
     main.run()
