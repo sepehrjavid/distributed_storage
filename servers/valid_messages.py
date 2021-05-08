@@ -8,7 +8,6 @@ DELETE_FILE = "rmf-{title}-{permission}"
 CREATE_CHUNK = "crc-{title}-{sequence}-{chunk_size}-{permission}"
 DELETE_CHUNK = "rmc"
 REPLICATE = "rpt-{title}-{sequence}-{chunk_size}-{permission}"
-ACCEPT = "ok"
 OUT_OF_SPACE = "no_space"
 INVALID_METADATA = "meta_err"
 DUPLICATE_FILE_FOR_USER = "dup"
@@ -22,3 +21,10 @@ INTRODUCE_PEER = "intro-{ip_address}"
 CONFIRM_HANDSHAKE = "confirm-{available_byte_size}-{rack_number}"
 STOP_FRIENDSHIP = "stop-fr"
 # TODO clean messages
+
+
+"""
+General Messages
+"""
+ACCEPT = "ok"
+NULL = "null"

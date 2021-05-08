@@ -8,12 +8,14 @@ from broadcast.transmitters import SimpleTransmitter
 from meta_data.peer_controller import PeerController
 from servers.data_node_server import DataNodeServer
 from servers.peer_server import PeerBroadcastServer
-from servers.valid_messages import JOIN_NETWORK, INTRODUCE_PEER, CONFIRM_HANDSHAKE
+from servers.valid_messages import JOIN_NETWORK, INTRODUCE_PEER, CONFIRM_HANDSHAKE, NULL
 from session.sessions import SimpleSession
 
 
 class Main:
     CONFIG_FILE_PATH = "dfs.conf"
+    SOCKET_ACCEPT_TIMEOUT = 2
+    JOIN_TRY_LIMIT = 3
 
     def __init__(self, ip_address, rack_number, available_byte_size):
         self.ip_address = ip_address
@@ -24,15 +26,28 @@ class Main:
                                                   port_number=PeerBroadcastServer.PORT_NUMBER)
 
     def join_network(self):
-        self.peer_transmitter.transmit(JOIN_NETWORK)
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_socket.bind((self.ip_address, PeerController.PORT_NUMBER))
         server_socket.listen(5)
-        peer_socket, addr = server_socket.accept()
+        server_socket.settimeout(self.SOCKET_ACCEPT_TIMEOUT)
+        try_number = 0
+
+        while True:
+            self.peer_transmitter.transmit(JOIN_NETWORK)
+            try:
+                peer_socket, addr = server_socket.accept()
+                break
+            except socket.timeout:
+                try_number += 1
+                if try_number >= self.JOIN_TRY_LIMIT:
+                    return PeerController(ip_address=self.ip_address, peers_sessions=[])
 
         peer_session = SimpleSession(input_socket=peer_socket, ip_address=addr[0], is_server=True)
         suggested_peer = peer_session.receive_data()
         suggested_peer_address = dict(parse.parse(INTRODUCE_PEER, suggested_peer).named)["ip_address"]
+
+        if suggested_peer_address == NULL:
+            return PeerController(ip_address=self.ip_address, peers_sessions=[peer_session])
 
         suggested_peer_socket, addr = server_socket.accept()
         while addr[0] != suggested_peer_address:
