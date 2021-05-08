@@ -1,20 +1,16 @@
 from broadcast.servers import SimpleBroadcastServer
 from meta_data.peer_controller import PeerController
+from servers.valid_messages import JOIN_NETWORK
 from singleton.singleton import Singleton
 
 
-class PeerServer:
-    PORT_NUMBER = 50501
-
-    pass
-
-
 class PeerBroadcastServer(SimpleBroadcastServer, metaclass=Singleton):
-    PORT_NUMBER = 50502
+    PORT_NUMBER = 50501
 
     def __init__(self, ip_address):
         super().__init__(ip_address, self.PORT_NUMBER)
         self.peer_controller = PeerController()
 
-    def on_receive(self, source_address, data) -> None:
-        pass
+    def on_receive(self, source_address, data):
+        if data == JOIN_NETWORK:
+            self.peer_controller.add_peer(source_address)

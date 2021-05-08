@@ -1,7 +1,7 @@
 import socket
 
 from encryption.encryptors import RSAEncryption
-from session.exceptions import InvalidSessionType, PeerTimeOutException
+from session.exceptions import PeerTimeOutException
 
 
 class SimpleSession:
@@ -12,12 +12,15 @@ class SimpleSession:
 
     def __init__(self, is_server=False, **kwargs):
         self.is_server = is_server
+        self.ip_address = kwargs.get("ip_address")
+        self.port_number = kwargs.get("port_number")
+
         if kwargs.get("input_socket"):
             self.socket = kwargs.get("input_socket")
         else:
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             try:
-                self.socket.connect((kwargs.get("ip_address"), kwargs.get("port_number")))
+                self.socket.connect((self.ip_address, self.port_number))
             except ConnectionRefusedError:
                 raise PeerTimeOutException
 

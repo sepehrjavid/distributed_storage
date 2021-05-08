@@ -9,7 +9,7 @@ from client.exceptions import InvalidClientActionConfigFile
 import ipaddress
 import os
 
-from meta_data.models import DataNode
+from meta_data.models.data_node import DataNode
 from servers.broadcast_server import BroadcastServer
 from servers.data_node_server import DataNodeServer
 from servers.valid_messages import CREATE_FILE, CREATE_CHUNK, ACCEPT, OUT_OF_SPACE
