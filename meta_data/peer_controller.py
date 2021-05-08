@@ -32,6 +32,7 @@ class PeerController(metaclass=Singleton):
         print(self.get_destinations)
 
     def add_peer(self, ip_address):
+        print(ip_address)
         try:
             new_peer_session = SimpleSession(ip_address=ip_address, port_number=self.PORT_NUMBER)
         except PeerTimeOutException:
@@ -42,14 +43,17 @@ class PeerController(metaclass=Singleton):
         else:
             new_peer_session.transfer_data(INTRODUCE_PEER.format(ip_address=self.peers[0].session.ip_address))
             self.peers[0].session.transfer_data(INTRODUCE_PEER.format(ip_address=ip_address))
+
+        print("waiting for confirmation")
         handshake_confirmation = new_peer_session.receive_data()
         if handshake_confirmation.split(MESSAGE_SEPARATOR)[0] != CONFIRM_HANDSHAKE.split(MESSAGE_SEPARATOR)[0]:
             new_peer_session.close()
             return
+        print(handshake_confirmation)
 
         meta_data = dict(parse.parse(CONFIRM_HANDSHAKE, handshake_confirmation).named)
         data_node = DataNode(db=self.db, ip_address=ip_address, available_byte_size=meta_data["available_byte_size"],
-                             rack_number=meta_data["rack_number"])
+                             rack_number=meta_data["rack_number"], last_seen=time())
         data_node.save()
 
         if len(self.peers) > 1:
@@ -59,6 +63,7 @@ class PeerController(metaclass=Singleton):
         thread = PeerRecvThread(session=new_peer_session, controller=self)
         self.peers.append(thread)
         thread.start()
+        print(self.peers)
 
     def inform_new_data_node(self, data_node: DataNode):
         pass
@@ -97,7 +102,7 @@ class PeerRecvThread(Thread):
             meta_data = dict(parse.parse(CONFIRM_HANDSHAKE, handshake_confirmation).named)
             data_node = DataNode(db=self.controller.db, ip_address=ip_address,
                                  available_byte_size=meta_data["available_byte_size"],
-                                 rack_number=meta_data["rack_number"])
+                                 rack_number=meta_data["rack_number"], last_seen=time())
             data_node.save()
 
             if len(self.controller.peers) == 1:

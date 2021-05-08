@@ -12,8 +12,9 @@ class PeerBroadcastServer(SimpleBroadcastServer, metaclass=Singleton):
         self.peer_controller = peer_controller
 
     def on_receive(self, source_address, data):
-        if data == JOIN_NETWORK:
-            self.peer_controller.add_peer(source_address)
+        if data.decode() == JOIN_NETWORK:
+            print("got join message yay!")
+            self.peer_controller.add_peer(source_address[0])
 
     def start(self):
         self._start()

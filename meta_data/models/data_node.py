@@ -12,8 +12,8 @@ class DataNode:
 
     def __create(self):
         self.id = self.db.create(
-            "INSERT INTO data_node (ip_address, rack_number, available_byte_size) VALUES (?,?,?);",
-            self.ip_address, self.rack_number, self.available_byte_size)
+            "INSERT INTO data_node (ip_address, rack_number, available_byte_size, last_seen) VALUES (?,?,?,?);",
+            self.ip_address, self.rack_number, self.available_byte_size, self.last_seen)
 
     def __update(self):
         self.db.execute("UPDATE data_node SET available_byte_size=?, last_seen=? WHERE id=?",
