@@ -6,7 +6,6 @@ from broadcast.transmitters import SimpleTransmitter
 class SimpleBroadcastServer:
     def __init__(self, ip_address, port_number):
         self.socket = socket(AF_INET, SOCK_DGRAM)
-        print(ip_address)
         self.socket.bind((ip_address, port_number))
 
     def _start(self):

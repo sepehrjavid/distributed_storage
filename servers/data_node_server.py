@@ -1,7 +1,7 @@
 from meta_data.models.chunk import Chunk
 from servers.valid_messages import (CREATE_CHUNK, DELETE_CHUNK, INVALID_METADATA, MESSAGE_SEPARATOR, OUT_OF_SPACE,
                                     ACCEPT, DUPLICATE_FILE_FOR_USER)
-from session.sessions import SimpleSession, FileSession
+from session.sessions import EncryptedSession, FileSession
 from singleton.singleton import Singleton
 from threading import Thread, Lock
 from time import time, sleep
@@ -68,7 +68,7 @@ class ClientThread(Thread):
         self.storage = storage
 
     def run(self):
-        session = SimpleSession(input_socket=self.client_data.get("socket"), is_server=True)
+        session = EncryptedSession(input_socket=self.client_data.get("socket"), is_server=True)
         command = session.receive_data()
         if command.split(MESSAGE_SEPARATOR)[0] == CREATE_CHUNK.split(MESSAGE_SEPARATOR)[0]:
             try:

@@ -4,7 +4,7 @@ from encryption.encryptors import RSAEncryption
 from session.exceptions import PeerTimeOutException
 
 
-class SimpleSession:
+class EncryptedSession:
     MTU = 4096
     DATA_LENGTH_BYTE_NUMBER = 2
     MDU = MTU - DATA_LENGTH_BYTE_NUMBER
@@ -69,6 +69,62 @@ class SimpleSession:
         self.socket.close()
 
 
+class SimpleSession:
+    MTU = 4096
+    DATA_LENGTH_BYTE_NUMBER = 2
+    MDU = MTU - DATA_LENGTH_BYTE_NUMBER
+    DATA_LENGTH_BYTE_ORDER = "big"
+
+    def __init__(self, **kwargs):
+        self.ip_address = kwargs.get("ip_address")
+        self.port_number = kwargs.get("port_number")
+
+        if kwargs.get("input_socket"):
+            self.socket = kwargs.get("input_socket")
+        else:
+            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            try:
+                self.socket.connect((self.ip_address, self.port_number))
+            except ConnectionRefusedError:
+                raise PeerTimeOutException
+
+    def transfer_data(self, data, encode=True):
+        if encode:
+            data = data.encode()
+
+        data_length = int(len(data)).to_bytes(byteorder=self.DATA_LENGTH_BYTE_ORDER,
+                                              length=self.DATA_LENGTH_BYTE_NUMBER,
+                                              signed=False)
+        self.socket.send(data_length + data)
+
+    def receive_data(self, decode=True):
+        data_length = self.socket.recv(self.DATA_LENGTH_BYTE_NUMBER)
+
+        if len(data_length) == 0:
+            return None
+
+        data_length = int.from_bytes(data_length,
+                                     byteorder=self.DATA_LENGTH_BYTE_ORDER,
+                                     signed=False)
+        bytes_read = 0
+        data = b''
+        while bytes_read < data_length:
+            temp_data = self.socket.recv(data_length - bytes_read)
+            data += temp_data
+            bytes_read += len(temp_data)
+
+        if decode:
+            return data.decode()
+        return data
+
+    def close(self):
+        self.socket.close()
+
+    def convert_to_encrypted_session(self, is_server=False):
+        return EncryptedSession(is_server=is_server, input_socket=self.socket, ip_address=self.ip_address,
+                                port_number=self.port_number)
+
+
 class FileSession:
     FILE_TRANSMISSION_PORT = 54224
 
@@ -78,11 +134,11 @@ class FileSession:
 
     def transfer_file(self, source_file_path, session=None):
         if session is None:
-            session = SimpleSession(ip_address=self.destination_ip_address, port_number=self.FILE_TRANSMISSION_PORT)
+            session = EncryptedSession(ip_address=self.destination_ip_address, port_number=self.FILE_TRANSMISSION_PORT)
 
         with open(source_file_path, "rb") as file:
             while True:
-                data = file.read(SimpleSession.MDU)
+                data = file.read(EncryptedSession.MDU)
 
                 if len(data) == 0:
                     break
@@ -97,7 +153,7 @@ class FileSession:
             server_socket.bind((self.source_ip_address, self.FILE_TRANSMISSION_PORT))
             server_socket.listen(5)
             client_socket, addr = server_socket.accept()
-            session = SimpleSession(input_socket=client_socket, is_server=True)
+            session = EncryptedSession(input_socket=client_socket, is_server=True)
             server_socket.close()
 
         with open(dest_path, "wb") as file:

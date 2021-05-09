@@ -20,6 +20,8 @@ JOIN_NETWORK = "join"
 INTRODUCE_PEER = "intro-{ip_address}"
 CONFIRM_HANDSHAKE = "confirm-{available_byte_size}-{rack_number}"
 STOP_FRIENDSHIP = "stop-fr"
+RESPOND_TO_BROADCAST = "broadcast"
+RESPOND_TO_INTRODUCTION = "introduction"
 # TODO clean messages
 
 
@@ -28,3 +30,4 @@ General Messages
 """
 ACCEPT = "ok"
 NULL = "null"
+REJECT = "reject"

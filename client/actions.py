@@ -13,7 +13,7 @@ from meta_data.models.data_node import DataNode
 from servers.broadcast_server import BroadcastServer
 from servers.data_node_server import DataNodeServer
 from servers.valid_messages import CREATE_FILE, CREATE_CHUNK, ACCEPT, OUT_OF_SPACE
-from session.sessions import SimpleSession, FileSession
+from session.sessions import EncryptedSession, FileSession
 
 
 class ClientActions:
@@ -57,7 +57,7 @@ class ClientActions:
                 raise InvalidClientActionConfigFile(field)
 
     def __send_chunk(self, data_node: DataNode, file_path, sequence, chunk_size):
-        session = SimpleSession(ip_address=data_node.ip_address, port_number=DataNodeServer.DATA_NODE_PORT_NUMBER)
+        session = EncryptedSession(ip_address=data_node.ip_address, port_number=DataNodeServer.DATA_NODE_PORT_NUMBER)
         permission_hash = hashlib.md5(self.username.encode()).hexdigest()
         session.transfer_data(CREATE_CHUNK.format(title=ntpath.basename(file_path), sequence=sequence,
                                                   chunk_size=chunk_size, permission=permission_hash))
@@ -85,7 +85,7 @@ class ClientActions:
             except socket.timeout:
                 transmitter.transmit(CREATE_FILE.format(total_size=os.path.getsize(file_path)))
 
-        session = SimpleSession(input_socket=client_socket, is_server=True)
+        session = EncryptedSession(input_socket=client_socket, is_server=True)
         response = session.receive_data()
         if response == OUT_OF_SPACE:
             print("The file system is out of space")
