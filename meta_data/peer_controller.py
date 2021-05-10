@@ -30,6 +30,7 @@ class PeerController(metaclass=Singleton):
             self.retrieve_database()
 
     def retrieve_database(self):
+        print(time())
         self.peers[0].session.transfer_data(REQUEST_DB)
 
     def lock_queue(self):
@@ -66,6 +67,10 @@ class PeerController(metaclass=Singleton):
             return
         print(f"got handshake {handshake_confirmation}")
 
+        thread = PeerRecvThread(session=new_peer_session, controller=self)
+        thread.start()
+        print(time())
+
         meta_data = dict(parse.parse(CONFIRM_HANDSHAKE, handshake_confirmation).named)
         data_node = DataNode(db=self.db_connection, ip_address=ip_address,
                              available_byte_size=meta_data["available_byte_size"],
@@ -76,9 +81,7 @@ class PeerController(metaclass=Singleton):
             self.inform_new_data_node(data_node)
             lost_peer = self.peers.pop(0)
 
-        thread = PeerRecvThread(session=new_peer_session, controller=self)
         self.peers.append(thread)
-        thread.start()
         print(self.peers)
 
     def inform_new_data_node(self, data_node: DataNode):
@@ -97,9 +100,10 @@ class PeerRecvThread(Thread):
         self.session = session
         self.controller = controller
         self.continues = True
-        self.db = MetaDatabase()
+        self.db = None
 
     def run(self):
+        self.db = MetaDatabase()
         while self.continues:
             message = self.session.receive_data()
             if message is None:
@@ -117,11 +121,6 @@ class PeerRecvThread(Thread):
         elif message == STOP_FRIENDSHIP:
             self.session.close()
             self.continues = False
-
-    def perform_recovery_actions(self):
-        self.session.close()
-        self.db.close()
-        self.continues = False
 
     def transfer_db(self):
         self.session.transfer_data(SEND_DB)
@@ -164,3 +163,10 @@ class PeerRecvThread(Thread):
             self.controller.inform_new_data_node(data_node)
 
         print("Thread ", self.controller.peers)
+
+    def perform_recovery_actions(self):
+        self.session.close()
+        self.db.close()
+        self.continues = False
+        self.controller.peers.remove(self)
+        print(self.controller.peers)
