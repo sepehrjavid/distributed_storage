@@ -140,8 +140,6 @@ class FileSession:
 
                 session.transfer_data(data, encode=False)
 
-        session.close()
-
     def receive_file(self, dest_path, session, replication_list=None):
         with open(dest_path, "wb") as file:
             data = session.receive_data(decode=False)

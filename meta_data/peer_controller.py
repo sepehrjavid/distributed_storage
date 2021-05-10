@@ -30,7 +30,6 @@ class PeerController(metaclass=Singleton):
             self.retrieve_database()
 
     def retrieve_database(self):
-        print(time())
         self.peers[0].session.transfer_data(REQUEST_DB)
 
     def lock_queue(self):
@@ -69,7 +68,6 @@ class PeerController(metaclass=Singleton):
 
         thread = PeerRecvThread(session=new_peer_session, controller=self)
         thread.start()
-        print(time())
 
         meta_data = dict(parse.parse(CONFIRM_HANDSHAKE, handshake_confirmation).named)
         data_node = DataNode(db=self.db_connection, ip_address=ip_address,
