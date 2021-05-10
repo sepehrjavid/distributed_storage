@@ -1,5 +1,6 @@
 import ipaddress
 import socket
+from time import sleep
 
 import parse
 
@@ -14,7 +15,7 @@ from session.sessions import SimpleSession
 
 class Main:
     CONFIG_FILE_PATH = "dfs.conf"
-    SOCKET_ACCEPT_TIMEOUT = 4
+    SOCKET_ACCEPT_TIMEOUT = 3
     JOIN_TRY_LIMIT = 3
 
     def __init__(self, ip_network, ip_address, rack_number, available_byte_size):
@@ -70,14 +71,12 @@ class Main:
         suggested_peer_socket, addr = server_socket.accept()
         session = SimpleSession(input_socket=suggested_peer_socket, ip_address=addr[0])
         command = session.receive_data()
-        print(command)
         while session.ip_address != suggested_peer_address or command != RESPOND_TO_INTRODUCTION:
             session.transfer_data(REJECT)
             session.close()
             suggested_peer_socket, addr = server_socket.accept()
             session = SimpleSession(input_socket=suggested_peer_socket, ip_address=addr[0])
             command = session.receive_data()
-            print(command)
         session.transfer_data(ACCEPT)
 
         suggested_peer_session = session.convert_to_encrypted_session(is_server=True)
@@ -94,6 +93,8 @@ class Main:
         self.broadcast_server = PeerBroadcastServer(ip_address=self.broadcast_address,
                                                     peer_controller=self.peer_controller)
         self.broadcast_server.start()
+        while True:
+            sleep(5)
 
 
 def data_node_server(ip_address, storage):

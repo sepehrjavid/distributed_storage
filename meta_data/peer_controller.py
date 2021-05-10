@@ -101,41 +101,44 @@ class PeerRecvThread(Thread):
 
     def handle_message(self, message):
         if message.split(MESSAGE_SEPARATOR)[0] == INTRODUCE_PEER.split(MESSAGE_SEPARATOR)[0]:
-            ip_address = dict(parse.parse(INTRODUCE_PEER, message).named)["ip_address"]
-            try:
-                new_session = SimpleSession(ip_address=ip_address, port_number=PeerController.PORT_NUMBER)
-                new_session.transfer_data(RESPOND_TO_INTRODUCTION)
-                command = new_session.receive_data()
-                if command == ACCEPT:
-                    new_session = new_session.convert_to_encrypted_session()
-                else:
-                    return
-            except PeerTimeOutException:
-                return
-
-            handshake_confirmation = new_session.receive_data()
-            print(f"Thread got handshake {handshake_confirmation}")
-            meta_data = dict(parse.parse(CONFIRM_HANDSHAKE, handshake_confirmation).named)
-            data_node = DataNode(db=self.db, ip_address=ip_address,
-                                 available_byte_size=meta_data["available_byte_size"],
-                                 rack_number=meta_data["rack_number"], last_seen=time())
-            data_node.save()
-
-            if len(self.controller.peers) == 1:
-                thread = PeerRecvThread(session=new_session, controller=self.controller)
-                self.controller.peers.append(thread)
-                thread.start()
-            else:
-                self.session.transfer_data(STOP_FRIENDSHIP)
-                self.session = new_session
-                self.controller.inform_new_data_node(data_node)
-
-            print("Thread ", self.controller.peers)
-
+            self.add_peer(message)
         elif message == STOP_FRIENDSHIP:
             self.session.close()
             self.continues = False
 
     def perform_recovery_actions(self):
         self.session.close()
+        self.db.close()
         self.continues = False
+
+    def add_peer(self, message):
+        ip_address = dict(parse.parse(INTRODUCE_PEER, message).named)["ip_address"]
+        try:
+            new_session = SimpleSession(ip_address=ip_address, port_number=PeerController.PORT_NUMBER)
+            new_session.transfer_data(RESPOND_TO_INTRODUCTION)
+            command = new_session.receive_data()
+            if command == ACCEPT:
+                new_session = new_session.convert_to_encrypted_session()
+            else:
+                return
+        except PeerTimeOutException:
+            return
+
+        handshake_confirmation = new_session.receive_data()
+        print(f"Thread got handshake {handshake_confirmation}")
+        meta_data = dict(parse.parse(CONFIRM_HANDSHAKE, handshake_confirmation).named)
+        data_node = DataNode(db=self.db, ip_address=ip_address,
+                             available_byte_size=meta_data["available_byte_size"],
+                             rack_number=meta_data["rack_number"], last_seen=time())
+        data_node.save()
+
+        if len(self.controller.peers) == 1:
+            thread = PeerRecvThread(session=new_session, controller=self.controller)
+            thread.start()
+            self.controller.peers.append(thread)
+        else:
+            self.session.transfer_data(STOP_FRIENDSHIP)
+            self.session = new_session
+            self.controller.inform_new_data_node(data_node)
+
+        print("Thread ", self.controller.peers)
