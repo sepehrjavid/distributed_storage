@@ -126,16 +126,11 @@ class SimpleSession:
 
 
 class FileSession:
-    FILE_TRANSMISSION_PORT = 54224
-
     def __init__(self, **kwargs):
         self.source_ip_address = kwargs.get("source_ip_address")
         self.destination_ip_address = kwargs.get("destination_ip_address")
 
     def transfer_file(self, source_file_path, session=None):
-        if session is None:
-            session = EncryptedSession(ip_address=self.destination_ip_address, port_number=self.FILE_TRANSMISSION_PORT)
-
         with open(source_file_path, "rb") as file:
             while True:
                 data = file.read(EncryptedSession.MDU)
@@ -147,19 +142,9 @@ class FileSession:
 
         session.close()
 
-    def receive_file(self, dest_path, session=None, replication_list=None):
-        if session is None:
-            server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            server_socket.bind((self.source_ip_address, self.FILE_TRANSMISSION_PORT))
-            server_socket.listen(5)
-            client_socket, addr = server_socket.accept()
-            session = EncryptedSession(input_socket=client_socket, is_server=True)
-            server_socket.close()
-
+    def receive_file(self, dest_path, session, replication_list=None):
         with open(dest_path, "wb") as file:
             data = session.receive_data(decode=False)
             while data is not None:
                 file.write(data)
                 data = session.receive_data(decode=False)
-
-        session.close()

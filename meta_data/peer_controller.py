@@ -6,9 +6,9 @@ import parse
 from meta_data.database import MetaDatabase
 from meta_data.models.data_node import DataNode
 from servers.valid_messages import (INTRODUCE_PEER, CONFIRM_HANDSHAKE, MESSAGE_SEPARATOR, STOP_FRIENDSHIP, NULL,
-                                    RESPOND_TO_BROADCAST, REJECT, RESPOND_TO_INTRODUCTION, ACCEPT)
+                                    RESPOND_TO_BROADCAST, REJECT, RESPOND_TO_INTRODUCTION, ACCEPT, REQUEST_DB, SEND_DB)
 from session.exceptions import PeerTimeOutException
-from session.sessions import EncryptedSession, SimpleSession
+from session.sessions import EncryptedSession, SimpleSession, FileSession
 from singleton.singleton import Singleton
 
 
@@ -24,11 +24,19 @@ class PeerController(metaclass=Singleton):
             self.peers.append(PeerRecvThread(session=peer, controller=self))
             self.peers[-1].start()
 
-    def get_destinations(self):
-        return [x.ip_address for x in DataNode.fetch_all(self.db_connection)]
+        if len(self.peers) == 0:
+            MetaDatabase.initialize_tables()
+        else:
+            self.retrieve_database()
 
-    def inform_new_directory(self, **kwargs):
-        print(self.get_destinations)
+    def retrieve_database(self):
+        self.peers[0].session.transfer_data(REQUEST_DB)
+
+    def lock_queue(self):
+        pass
+
+    def release_queue_lock(self):
+        pass
 
     def add_peer(self, ip_address):
         print(f"ready to add peer {ip_address}")
@@ -102,6 +110,10 @@ class PeerRecvThread(Thread):
     def handle_message(self, message):
         if message.split(MESSAGE_SEPARATOR)[0] == INTRODUCE_PEER.split(MESSAGE_SEPARATOR)[0]:
             self.add_peer(message)
+        elif message == REQUEST_DB:
+            self.transfer_db()
+        elif message == SEND_DB:
+            self.receive_db()
         elif message == STOP_FRIENDSHIP:
             self.session.close()
             self.continues = False
@@ -110,6 +122,16 @@ class PeerRecvThread(Thread):
         self.session.close()
         self.db.close()
         self.continues = False
+
+    def transfer_db(self):
+        self.session.transfer_data(SEND_DB)
+        file_session = FileSession()
+        file_session.transfer_file(MetaDatabase.DATABASE_PATH, self.session)
+
+    def receive_db(self):
+        file_session = FileSession()
+        file_session.receive_file(MetaDatabase.DATABASE_PATH, self.session)
+        self.controller.release_queue_lock()
 
     def add_peer(self, message):
         ip_address = dict(parse.parse(INTRODUCE_PEER, message).named)["ip_address"]

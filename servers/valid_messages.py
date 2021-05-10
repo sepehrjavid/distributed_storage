@@ -22,6 +22,8 @@ CONFIRM_HANDSHAKE = "confirm-{available_byte_size}-{rack_number}"
 STOP_FRIENDSHIP = "stop-fr"
 RESPOND_TO_BROADCAST = "broadcast"
 RESPOND_TO_INTRODUCTION = "introduction"
+REQUEST_DB = "reqdb"
+SEND_DB = "snddb"
 # TODO clean messages
 
 
