@@ -2,7 +2,7 @@ import ipaddress
 import socket
 from _queue import Empty
 from multiprocessing import Queue
-from threading import Lock, Thread, Event
+from threading import Lock, Thread
 from time import monotonic
 
 import parse

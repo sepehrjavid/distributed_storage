@@ -3,7 +3,6 @@ from time import monotonic
 
 import parse
 
-from controllers.peer_controller import PeerController
 from meta_data.database import MetaDatabase
 from meta_data.models.data_node import DataNode
 from servers.valid_messages import (CONFIRM_HANDSHAKE, STOP_FRIENDSHIP, RESPOND_TO_INTRODUCTION, ACCEPT, INTRODUCE_PEER,
@@ -13,7 +12,7 @@ from session.sessions import SimpleSession, FileSession, EncryptedSession
 
 
 class PeerRecvThread(Thread):
-    def __init__(self, session: EncryptedSession, controller: PeerController, *args, **kwargs):
+    def __init__(self, session: EncryptedSession, controller, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.session = session
         self.controller = controller
@@ -69,7 +68,7 @@ class PeerRecvThread(Thread):
     def add_peer(self, message):
         ip_address = dict(parse.parse(INTRODUCE_PEER, message).named)["ip_address"]
         try:
-            new_session = SimpleSession(ip_address=ip_address, port_number=PeerController.PORT_NUMBER)
+            new_session = SimpleSession(ip_address=ip_address, port_number=self.controller.PORT_NUMBER)
             new_session.transfer_data(RESPOND_TO_INTRODUCTION)
             command = new_session.receive_data()
             if command == ACCEPT:

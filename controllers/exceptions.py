@@ -1,3 +1,3 @@
 class InvalidDataNodeConfigFile(Exception):
-    def __init__(self):
-        super().__init__("Invalid Config File")
+    def __init__(self, field):
+        super().__init__(f"Invalid Config File! {field} is missing")
