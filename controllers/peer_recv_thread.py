@@ -6,7 +6,7 @@ import parse
 from meta_data.database import MetaDatabase
 from meta_data.models.data_node import DataNode
 from servers.valid_messages import (CONFIRM_HANDSHAKE, STOP_FRIENDSHIP, RESPOND_TO_INTRODUCTION, ACCEPT, INTRODUCE_PEER,
-                                    MESSAGE_SEPARATOR, REQUEST_DB, SEND_DB, UPDATE_DATA_NODE)
+                                    MESSAGE_SEPARATOR, REQUEST_DB, SEND_DB, UPDATE_DATA_NODE, UNBLOCK_QUEUEING)
 from session.exceptions import PeerTimeOutException
 from session.sessions import SimpleSession, FileSession, EncryptedSession
 
@@ -49,6 +49,7 @@ class PeerRecvThread(Thread):
     def receive_db(self):
         file_session = FileSession()
         file_session.receive_file(MetaDatabase.DATABASE_PATH, self.session)
+        self.controller.peer_transmitter.transmit(UNBLOCK_QUEUEING)
         self.controller.release_queue_lock()
 
     def update_data_node(self, message):
@@ -59,11 +60,11 @@ class PeerRecvThread(Thread):
             data_node.available_byte_size = meta_data.get("available_byte_size")
             data_node.save()
         else:
+            self.controller.inform_next_node(message)
             data_node = DataNode(db=self.db, ip_address=meta_data["ip_address"],
                                  rack_number=meta_data.get("rack_number"),
                                  available_byte_size=meta_data.get("available_byte_size"), last_seen=monotonic())
             data_node.save()
-            self.controller.inform_next_node(message)
 
     def add_peer(self, message):
         ip_address = dict(parse.parse(INTRODUCE_PEER, message).named)["ip_address"]
