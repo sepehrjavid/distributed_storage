@@ -1,7 +1,12 @@
 import ipaddress
 import socket
-from _queue import Empty
 from multiprocessing import Queue
+
+try:
+    from _queue import Empty
+except ImportError:
+    from queue import Empty
+    
 from threading import Lock, Thread
 from time import monotonic
 
