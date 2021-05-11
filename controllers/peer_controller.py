@@ -8,7 +8,7 @@ except ImportError:
     from queue import Empty
 
 from threading import Thread, Event
-from time import monotonic
+from time import monotonic, sleep
 
 import parse
 
@@ -19,8 +19,7 @@ from meta_data.database import MetaDatabase
 from meta_data.models.data_node import DataNode
 from servers.peer_server import PeerBroadcastServer
 from servers.valid_messages import (INTRODUCE_PEER, CONFIRM_HANDSHAKE, MESSAGE_SEPARATOR, NULL, RESPOND_TO_BROADCAST,
-                                    REJECT, REQUEST_DB, JOIN_NETWORK, ACCEPT, RESPOND_TO_INTRODUCTION, BLOCK_QUEUEING,
-                                    UNBLOCK_QUEUEING)
+                                    REJECT, REQUEST_DB, JOIN_NETWORK, ACCEPT, RESPOND_TO_INTRODUCTION, BLOCK_QUEUEING)
 from session.exceptions import PeerTimeOutException
 from session.sessions import SimpleSession
 from singleton.singleton import Singleton
@@ -86,6 +85,9 @@ class PeerController(metaclass=Singleton):
                 raise InvalidDataNodeConfigFile(field)
 
     def retrieve_database(self):
+        self.peer_transmitter.transmit(BLOCK_QUEUEING)
+        self.lock_queue()
+        sleep(0.7)
         self.peers[0].session.transfer_data(REQUEST_DB)
 
     def lock_queue(self):
@@ -117,8 +119,6 @@ class PeerController(metaclass=Singleton):
                 print("peer did not accept my help :(")
                 self.peer_transmitter.transmit()
                 return
-            self.lock_queue()
-            self.peer_transmitter.transmit(BLOCK_QUEUEING)
             new_peer_session = new_peer_session.convert_to_encrypted_session()
         except PeerTimeOutException:
             print("peer did not accept my help :(")
@@ -134,8 +134,6 @@ class PeerController(metaclass=Singleton):
         handshake_confirmation = new_peer_session.receive_data()
         if handshake_confirmation.split(MESSAGE_SEPARATOR)[0] != CONFIRM_HANDSHAKE.split(MESSAGE_SEPARATOR)[0]:
             new_peer_session.close()
-            self.release_queue_lock()
-            self.peer_transmitter.transmit(UNBLOCK_QUEUEING)
             return
         print(f"got handshake {handshake_confirmation}")
 
