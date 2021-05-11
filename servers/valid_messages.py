@@ -24,9 +24,9 @@ RESPOND_TO_BROADCAST = "broadcast"
 RESPOND_TO_INTRODUCTION = "introduction"
 REQUEST_DB = "reqdb"
 SEND_DB = "snddb"
-UPDATE_DATA_NODE = "nwnd-{ip_address}-{available_byte_size}-{rack_number}"
 UNBLOCK_QUEUEING = "unblck"
 BLOCK_QUEUEING = "blck"
+ABORT_JOIN = "abrt"
 # TODO clean messages
 
 
@@ -36,3 +36,9 @@ General Messages
 ACCEPT = "ok"
 NULL = "null"
 REJECT = "reject"
+
+"""
+Metadata Events
+"""
+
+UPDATE_DATA_NODE = "nwnd-{ip_address}-{available_byte_size}-{rack_number}"

@@ -8,7 +8,7 @@ except ImportError:
     from queue import Empty
 
 from threading import Thread, Event
-from time import monotonic, sleep
+from time import monotonic
 
 import parse
 
@@ -19,7 +19,8 @@ from meta_data.database import MetaDatabase
 from meta_data.models.data_node import DataNode
 from servers.peer_server import PeerBroadcastServer
 from servers.valid_messages import (INTRODUCE_PEER, CONFIRM_HANDSHAKE, MESSAGE_SEPARATOR, NULL, RESPOND_TO_BROADCAST,
-                                    REJECT, REQUEST_DB, JOIN_NETWORK, ACCEPT, RESPOND_TO_INTRODUCTION, BLOCK_QUEUEING)
+                                    REJECT, REQUEST_DB, JOIN_NETWORK, ACCEPT, RESPOND_TO_INTRODUCTION, BLOCK_QUEUEING,
+                                    UNBLOCK_QUEUEING, ABORT_JOIN, UPDATE_DATA_NODE)
 from session.exceptions import PeerTimeOutException
 from session.sessions import SimpleSession
 from singleton.singleton import Singleton
@@ -85,9 +86,6 @@ class PeerController(metaclass=Singleton):
                 raise InvalidDataNodeConfigFile(field)
 
     def retrieve_database(self):
-        self.peer_transmitter.transmit(BLOCK_QUEUEING)
-        self.lock_queue()
-        sleep(0.7)
         self.peers[0].session.transfer_data(REQUEST_DB)
 
     def lock_queue(self):
@@ -124,6 +122,9 @@ class PeerController(metaclass=Singleton):
             print("peer did not accept my help :(")
             return
 
+        self.peer_transmitter.transmit(BLOCK_QUEUEING)
+        self.lock_queue()
+
         if len(self.peers) == 0:
             new_peer_session.transfer_data(INTRODUCE_PEER.format(ip_address=NULL))
         else:
@@ -134,6 +135,8 @@ class PeerController(metaclass=Singleton):
         handshake_confirmation = new_peer_session.receive_data()
         if handshake_confirmation.split(MESSAGE_SEPARATOR)[0] != CONFIRM_HANDSHAKE.split(MESSAGE_SEPARATOR)[0]:
             new_peer_session.close()
+            self.peer_transmitter.transmit(UNBLOCK_QUEUEING)
+            self.release_queue_lock()
             return
         print(f"got handshake {handshake_confirmation}")
 
@@ -143,11 +146,13 @@ class PeerController(metaclass=Singleton):
         meta_data = dict(parse.parse(CONFIRM_HANDSHAKE, handshake_confirmation).named)
         data_node = DataNode(db=self.db_connection, ip_address=ip_address,
                              available_byte_size=meta_data["available_byte_size"],
-                             rack_number=meta_data["rack_number"], last_seen=monotonic())
+                             rack_number=meta_data["rack_number"], last_seen=monotonic()).save()
         data_node.save()
 
         if len(self.peers) > 1:
-            self.inform_next_node(data_node)
+            self.inform_next_node(
+                UPDATE_DATA_NODE.encode(ip_address=data_node.ip_address, rack_number=data_node.rack_number,
+                                        available_byte_size=data_node.available_byte_size))
             lost_peer = self.peers.pop(0)
 
         self.peers.append(thread)
@@ -202,7 +207,12 @@ class PeerController(metaclass=Singleton):
         while session.ip_address != suggested_peer_address or command != RESPOND_TO_INTRODUCTION:
             session.transfer_data(REJECT)
             session.close()
-            suggested_peer_socket, addr = server_socket.accept()
+            try:
+                suggested_peer_socket, addr = server_socket.accept()
+            except socket.timeout:
+                peer_session.transfer_data(ABORT_JOIN)
+                peer_session.close()
+                return []
             session = SimpleSession(input_socket=suggested_peer_socket, ip_address=addr[0])
             command = session.receive_data()
         session.transfer_data(ACCEPT)
@@ -223,6 +233,8 @@ class PeerController(metaclass=Singleton):
 
         if len(self.peers) == 0:
             MetaDatabase.initialize_tables()
+            DataNode(db=self.db_connection, ip_address=self.ip_address, rack_number=self.rack_number,
+                     available_byte_size=self.available_byte_size, last_seen=monotonic()).save()
         else:
             self.retrieve_database()
 

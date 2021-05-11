@@ -95,7 +95,9 @@ class PeerRecvThread(Thread):
         else:
             self.session.transfer_data(STOP_FRIENDSHIP)
             self.session = new_session
-            self.controller.inform_next_node(data_node)
+            self.controller.inform_next_node(
+                UPDATE_DATA_NODE.encode(ip_address=data_node.ip_address, rack_number=data_node.rack_number,
+                                        available_byte_size=data_node.available_byte_size))
 
         print("Thread ", self.controller.peers)
 
