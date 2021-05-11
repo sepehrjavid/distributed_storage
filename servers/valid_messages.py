@@ -24,6 +24,7 @@ RESPOND_TO_BROADCAST = "broadcast"
 RESPOND_TO_INTRODUCTION = "introduction"
 REQUEST_DB = "reqdb"
 SEND_DB = "snddb"
+UPDATE_DATA_NODE = "nwnd-{ip_address}-{available_byte_size}-{rack_number}"
 # TODO clean messages
 
 

@@ -6,7 +6,8 @@ import parse
 from meta_data.database import MetaDatabase
 from meta_data.models.data_node import DataNode
 from servers.valid_messages import (INTRODUCE_PEER, CONFIRM_HANDSHAKE, MESSAGE_SEPARATOR, STOP_FRIENDSHIP, NULL,
-                                    RESPOND_TO_BROADCAST, REJECT, RESPOND_TO_INTRODUCTION, ACCEPT, REQUEST_DB, SEND_DB)
+                                    RESPOND_TO_BROADCAST, REJECT, RESPOND_TO_INTRODUCTION, ACCEPT, REQUEST_DB, SEND_DB,
+                                    UPDATE_DATA_NODE)
 from session.exceptions import PeerTimeOutException
 from session.sessions import EncryptedSession, SimpleSession, FileSession
 from singleton.singleton import Singleton
@@ -76,20 +77,15 @@ class PeerController(metaclass=Singleton):
         data_node.save()
 
         if len(self.peers) > 1:
-            self.inform_new_data_node(data_node)
+            self.inform_next_node(data_node)
             lost_peer = self.peers.pop(0)
 
         self.peers.append(thread)
         print(self.peers)
 
-    def inform_new_data_node(self, data_node: DataNode):
-        pass
-
-    def update_peer(self, ip_address, available_byte_size):
-        data_node = DataNode.fetch_by_ip(ip_address, self.db_connection)
-        data_node.last_seen = time()
-        data_node.available_byte_size = available_byte_size
-        data_node.save()
+    def inform_next_node(self, message):
+        for peer in self.peers:
+            peer.session.transfer_data(message)
 
 
 class PeerRecvThread(Thread):
@@ -116,6 +112,8 @@ class PeerRecvThread(Thread):
             self.transfer_db()
         elif message == SEND_DB:
             self.receive_db()
+        elif message.split(MESSAGE_SEPARATOR)[0] == UPDATE_DATA_NODE.split(MESSAGE_SEPARATOR)[0]:
+            self.update_data_node(message)
         elif message == STOP_FRIENDSHIP:
             self.session.close()
             self.continues = False
@@ -129,6 +127,20 @@ class PeerRecvThread(Thread):
         file_session = FileSession()
         file_session.receive_file(MetaDatabase.DATABASE_PATH, self.session)
         self.controller.release_queue_lock()
+
+    def update_data_node(self, message):
+        meta_data = dict(parse.parse(INTRODUCE_PEER, message).named)
+        data_node = DataNode.fetch_by_ip(meta_data.get("ip_address"), self.db)
+        if data_node is not None:
+            data_node.rack_number = meta_data.get("rack_number")
+            data_node.available_byte_size = meta_data.get("available_byte_size")
+            data_node.save()
+        else:
+            data_node = DataNode(db=self.db, ip_address=meta_data["ip_address"],
+                                 rack_number=meta_data.get("rack_number"),
+                                 available_byte_size=meta_data.get("available_byte_size"), last_seen=time())
+            data_node.save()
+            self.controller.inform_next_node(message)
 
     def add_peer(self, message):
         ip_address = dict(parse.parse(INTRODUCE_PEER, message).named)["ip_address"]
@@ -158,7 +170,7 @@ class PeerRecvThread(Thread):
         else:
             self.session.transfer_data(STOP_FRIENDSHIP)
             self.session = new_session
-            self.controller.inform_new_data_node(data_node)
+            self.controller.inform_next_node(data_node)
 
         print("Thread ", self.controller.peers)
 
@@ -167,4 +179,3 @@ class PeerRecvThread(Thread):
         self.db.close()
         self.continues = False
         self.controller.peers.remove(self)
-        print(self.controller.peers)
