@@ -1,5 +1,5 @@
 from broadcast.servers import SimpleBroadcastServer
-from meta_data.peer_controller import PeerController
+from controllers.peer_controller import PeerController
 from servers.valid_messages import JOIN_NETWORK
 from singleton.singleton import Singleton
 

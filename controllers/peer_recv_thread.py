@@ -1,91 +1,15 @@
 from threading import Thread
-from time import time
+from time import monotonic
 
 import parse
 
+from controllers.peer_controller import PeerController
 from meta_data.database import MetaDatabase
 from meta_data.models.data_node import DataNode
-from servers.valid_messages import (INTRODUCE_PEER, CONFIRM_HANDSHAKE, MESSAGE_SEPARATOR, STOP_FRIENDSHIP, NULL,
-                                    RESPOND_TO_BROADCAST, REJECT, RESPOND_TO_INTRODUCTION, ACCEPT, REQUEST_DB, SEND_DB,
-                                    UPDATE_DATA_NODE)
+from servers.valid_messages import (CONFIRM_HANDSHAKE, STOP_FRIENDSHIP, RESPOND_TO_INTRODUCTION, ACCEPT, INTRODUCE_PEER,
+                                    MESSAGE_SEPARATOR, REQUEST_DB, SEND_DB, UPDATE_DATA_NODE)
 from session.exceptions import PeerTimeOutException
-from session.sessions import EncryptedSession, SimpleSession, FileSession
-from singleton.singleton import Singleton
-
-
-class PeerController(metaclass=Singleton):
-    PORT_NUMBER = 50502
-
-    def __init__(self, ip_address, peers_sessions: list):
-        self.ip_address = ip_address
-        self.db_connection = MetaDatabase()
-
-        self.peers = []
-        for peer in peers_sessions:
-            self.peers.append(PeerRecvThread(session=peer, controller=self))
-            self.peers[-1].start()
-
-        if len(self.peers) == 0:
-            MetaDatabase.initialize_tables()
-        else:
-            self.retrieve_database()
-
-    def retrieve_database(self):
-        self.peers[0].session.transfer_data(REQUEST_DB)
-
-    def lock_queue(self):
-        pass
-
-    def release_queue_lock(self):
-        pass
-
-    def add_peer(self, ip_address):
-        print(f"ready to add peer {ip_address}")
-        try:
-            new_peer_session = SimpleSession(ip_address=ip_address, port_number=self.PORT_NUMBER)
-            new_peer_session.transfer_data(RESPOND_TO_BROADCAST)
-            response = new_peer_session.receive_data()
-            if response == REJECT:
-                new_peer_session.close()
-                print("peer did not accept my help :(")
-                return
-            new_peer_session = new_peer_session.convert_to_encrypted_session()
-        except PeerTimeOutException:
-            print("peer did not accept my help :(")
-            return
-
-        if len(self.peers) == 0:
-            new_peer_session.transfer_data(INTRODUCE_PEER.format(ip_address=NULL))
-        else:
-            new_peer_session.transfer_data(INTRODUCE_PEER.format(ip_address=self.peers[0].session.ip_address))
-            self.peers[0].session.transfer_data(INTRODUCE_PEER.format(ip_address=ip_address))
-
-        print(f"waiting for confirmation from {new_peer_session.ip_address}")
-        handshake_confirmation = new_peer_session.receive_data()
-        if handshake_confirmation.split(MESSAGE_SEPARATOR)[0] != CONFIRM_HANDSHAKE.split(MESSAGE_SEPARATOR)[0]:
-            new_peer_session.close()
-            return
-        print(f"got handshake {handshake_confirmation}")
-
-        thread = PeerRecvThread(session=new_peer_session, controller=self)
-        thread.start()
-
-        meta_data = dict(parse.parse(CONFIRM_HANDSHAKE, handshake_confirmation).named)
-        data_node = DataNode(db=self.db_connection, ip_address=ip_address,
-                             available_byte_size=meta_data["available_byte_size"],
-                             rack_number=meta_data["rack_number"], last_seen=time())
-        data_node.save()
-
-        if len(self.peers) > 1:
-            self.inform_next_node(data_node)
-            lost_peer = self.peers.pop(0)
-
-        self.peers.append(thread)
-        print(self.peers)
-
-    def inform_next_node(self, message):
-        for peer in self.peers:
-            peer.session.transfer_data(message)
+from session.sessions import SimpleSession, FileSession, EncryptedSession
 
 
 class PeerRecvThread(Thread):
@@ -138,7 +62,7 @@ class PeerRecvThread(Thread):
         else:
             data_node = DataNode(db=self.db, ip_address=meta_data["ip_address"],
                                  rack_number=meta_data.get("rack_number"),
-                                 available_byte_size=meta_data.get("available_byte_size"), last_seen=time())
+                                 available_byte_size=meta_data.get("available_byte_size"), last_seen=monotonic())
             data_node.save()
             self.controller.inform_next_node(message)
 
@@ -160,7 +84,7 @@ class PeerRecvThread(Thread):
         meta_data = dict(parse.parse(CONFIRM_HANDSHAKE, handshake_confirmation).named)
         data_node = DataNode(db=self.db, ip_address=ip_address,
                              available_byte_size=meta_data["available_byte_size"],
-                             rack_number=meta_data["rack_number"], last_seen=time())
+                             rack_number=meta_data["rack_number"], last_seen=monotonic())
         data_node.save()
 
         if len(self.controller.peers) == 1:
