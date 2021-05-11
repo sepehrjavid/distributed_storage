@@ -45,6 +45,7 @@ class PeerRecvThread(Thread):
         self.session.transfer_data(SEND_DB)
         file_session = FileSession()
         file_session.transfer_file(MetaDatabase.DATABASE_PATH, self.session)
+        print("transfer database")
 
     def receive_db(self):
         file_session = FileSession()

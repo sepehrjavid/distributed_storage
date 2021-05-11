@@ -1,3 +1,4 @@
+import os
 import socket
 
 from encryption.encryptors import RSAEncryption
@@ -41,7 +42,7 @@ class EncryptedSession:
         data_length = int(len(encrypted_data)).to_bytes(byteorder=self.DATA_LENGTH_BYTE_ORDER,
                                                         length=self.DATA_LENGTH_BYTE_NUMBER,
                                                         signed=False)
-        self.socket.send(data_length + encrypted_data)
+        self.socket.sendall(data_length + encrypted_data)
 
     def receive_data(self, decode=True):
         data_length = self.socket.recv(self.DATA_LENGTH_BYTE_NUMBER)
@@ -95,7 +96,7 @@ class SimpleSession:
         data_length = int(len(data)).to_bytes(byteorder=self.DATA_LENGTH_BYTE_ORDER,
                                               length=self.DATA_LENGTH_BYTE_NUMBER,
                                               signed=False)
-        self.socket.send(data_length + data)
+        self.socket.sendall(data_length + data)
 
     def receive_data(self, decode=True):
         data_length = self.socket.recv(self.DATA_LENGTH_BYTE_NUMBER)
@@ -131,6 +132,8 @@ class FileSession:
         self.destination_ip_address = kwargs.get("destination_ip_address")
 
     def transfer_file(self, source_file_path, session=None):
+        session.transfer_data(str(os.path.getsize(source_file_path)))
+
         with open(source_file_path, "rb") as file:
             while True:
                 data = file.read(EncryptedSession.MDU)
@@ -141,8 +144,12 @@ class FileSession:
                 session.transfer_data(data, encode=False)
 
     def receive_file(self, dest_path, session, replication_list=None):
+        file_size = int(session.receive_data())
+        received = 0
+
         with open(dest_path, "wb") as file:
             data = session.receive_data(decode=False)
-            while data is not None:
+            while received < file_size:
                 file.write(data)
+                received += len(data)
                 data = session.receive_data(decode=False)
