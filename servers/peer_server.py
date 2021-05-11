@@ -17,9 +17,9 @@ class PeerBroadcastServer(SimpleBroadcastServer, metaclass=Singleton):
         if data.decode() == JOIN_NETWORK:
             print("got join message yay!")
             self.peer_controller.add_peer(source_address[0])
-        elif data == UNBLOCK_QUEUEING:
+        elif data.decode() == UNBLOCK_QUEUEING:
             self.peer_controller.release_queue_lock()
-        elif data == BLOCK_QUEUEING:
+        elif data.decode() == BLOCK_QUEUEING:
             self.peer_controller.lock_queue()
 
     def start(self):
