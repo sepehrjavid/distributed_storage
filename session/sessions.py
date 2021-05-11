@@ -148,8 +148,7 @@ class FileSession:
         received = 0
 
         with open(dest_path, "wb") as file:
-            data = session.receive_data(decode=False)
             while received < file_size:
+                data = session.receive_data(decode=False)
                 file.write(data)
                 received += len(data)
-                data = session.receive_data(decode=False)
