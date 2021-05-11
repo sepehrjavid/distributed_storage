@@ -9,7 +9,6 @@ class SimpleBroadcastServer:
         self.socket.bind((ip_address, port_number))
 
     def _start(self):
-        print("broadcast go")
         while True:
             data, source_address = self.socket.recvfrom(SimpleTransmitter.MAXIMUM_DATA_SIZE)
             self.on_receive(source_address, data)

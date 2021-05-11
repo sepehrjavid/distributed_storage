@@ -30,11 +30,11 @@ class PeerController(metaclass=Singleton):
     def __init__(self, activity_queue: Queue):
         self.config = None
         self.update_config_file()
+        print("DFS configuration loaded successfully")
         self.ip_address = self.config.get("ip_address")
         self.network_id = self.config.get("network_id")
         self.rack_number = self.config.get("rack_number")
         self.available_byte_size = self.config.get("available_byte_size")
-        self.broadcast_address = str(ipaddress.ip_network(self.network_id).broadcast_address)
         self.peer_transmitter = SimpleTransmitter(broadcast_address=self.broadcast_address,
                                                   port_number=PeerBroadcastServer.PORT_NUMBER)
 
@@ -42,6 +42,7 @@ class PeerController(metaclass=Singleton):
         self.activity_lock = Lock()
         self.activity_queue = activity_queue
 
+        self.broadcast_address = str(ipaddress.ip_network(self.network_id).broadcast_address)
         self.broadcast_server = PeerBroadcastServer(ip_address=self.ip_address, peer_controller=self)
         self.storage_communicator_thread = Thread(target=self.handle_storage_process_messages, args=[])
         self.storage_communicator_thread.daemon = True
@@ -212,4 +213,6 @@ class PeerController(metaclass=Singleton):
             self.retrieve_database()
 
         self.storage_communicator_thread.start()
+        print("Storage communicator started")
         self.broadcast_server.start()
+        print("Broadcast server started")
