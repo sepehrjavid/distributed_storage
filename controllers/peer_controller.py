@@ -6,8 +6,8 @@ try:
     from _queue import Empty
 except ImportError:
     from queue import Empty
-    
-from threading import Lock, Thread
+
+from threading import Lock, Thread, Event
 from time import monotonic
 
 import parse
@@ -45,11 +45,13 @@ class PeerController(metaclass=Singleton):
                                                   port_number=PeerBroadcastServer.PORT_NUMBER)
 
         self.db_connection = MetaDatabase()
-        self.activity_lock = Lock()
+        self.activity_lock = Event()
+        self.activity_lock.set()
         self.activity_queue = activity_queue
 
-        self.broadcast_server = PeerBroadcastServer(ip_address=self.ip_address, peer_controller=self)
-        self.storage_communicator_thread = Thread(target=self.handle_storage_process_messages, args=[])
+        self.broadcast_server = PeerBroadcastServer(broadcast_address=self.broadcast_address, peer_controller=self)
+        self.storage_communicator_thread = Thread(target=self.handle_storage_process_messages,
+                                                  args=[self.activity_lock])
         self.storage_communicator_thread.daemon = True
 
         self.peers = []
@@ -86,19 +88,19 @@ class PeerController(metaclass=Singleton):
         self.peers[0].session.transfer_data(REQUEST_DB)
 
     def lock_queue(self):
-        self.activity_lock.acquire()
+        self.activity_lock.clear()
 
     def release_queue_lock(self):
-        self.activity_lock.release()
+        self.activity_lock.set()
 
-    def handle_storage_process_messages(self):
+    def handle_storage_process_messages(self, activity_lock: Event):
         while True:
-            with self.activity_lock:
-                try:
-                    message = self.activity_queue.get()
-                    self.inform_next_node(message)
-                except Empty:
-                    continue
+            activity_lock.wait()
+            try:
+                message = self.activity_queue.get(timeout=1)
+                self.inform_next_node(message)
+            except Empty:
+                continue
 
     def add_peer(self, ip_address):
         print(f"ready to add peer {ip_address}")
@@ -220,4 +222,3 @@ class PeerController(metaclass=Singleton):
         self.storage_communicator_thread.start()
         print("Storage communicator started")
         self.broadcast_server.start()
-        print("Broadcast server started")

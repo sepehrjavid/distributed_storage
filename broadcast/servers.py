@@ -4,9 +4,9 @@ from broadcast.transmitters import SimpleTransmitter
 
 
 class SimpleBroadcastServer:
-    def __init__(self, ip_address, port_number):
+    def __init__(self, broadcast_address, port_number):
         self.socket = socket(AF_INET, SOCK_DGRAM)
-        self.socket.bind((ip_address, port_number))
+        self.socket.bind((broadcast_address, port_number))
 
     def _start(self):
         while True:

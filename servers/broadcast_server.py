@@ -19,8 +19,8 @@ class BroadcastServer(SimpleBroadcastServer, metaclass=Singleton):
     BROADCAST_SERVER_PORT_NUMBER = 54222
     CLIENT_PORT_NUMBER = BROADCAST_SERVER_PORT_NUMBER
 
-    def __init__(self, ip_address, storage):
-        super().__init__(ip_address, self.BROADCAST_SERVER_PORT_NUMBER)
+    def __init__(self, broadcast_address, storage):
+        super().__init__(broadcast_address, self.BROADCAST_SERVER_PORT_NUMBER)
         self.active_clients = []
         self.active_clients_lock = Lock()
         self.controller_thread = None
