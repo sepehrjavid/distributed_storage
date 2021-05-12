@@ -8,7 +8,7 @@ except ImportError:
     from queue import Empty
 
 from threading import Thread, Event
-from time import monotonic, sleep
+from time import monotonic
 
 import parse
 
@@ -19,7 +19,7 @@ from meta_data.database import MetaDatabase
 from meta_data.models.data_node import DataNode
 from servers.peer_server import PeerBroadcastServer
 from servers.valid_messages import (INTRODUCE_PEER, CONFIRM_HANDSHAKE, MESSAGE_SEPARATOR, NULL, RESPOND_TO_BROADCAST,
-                                    REJECT, REQUEST_DB, JOIN_NETWORK, ACCEPT, RESPOND_TO_INTRODUCTION, BLOCK_QUEUEING,
+                                    REJECT, JOIN_NETWORK, ACCEPT, RESPOND_TO_INTRODUCTION, BLOCK_QUEUEING,
                                     UNBLOCK_QUEUEING, ABORT_JOIN, UPDATE_DATA_NODE, SEND_DB)
 from session.exceptions import PeerTimeOutException
 from session.sessions import SimpleSession, FileSession
@@ -84,9 +84,6 @@ class PeerController(metaclass=Singleton):
         for field in PeerController.MANDATORY_FIELDS:
             if field not in keys:
                 raise InvalidDataNodeConfigFile(field)
-
-    def retrieve_database(self):
-        self.peers[0].session.transfer_data(REQUEST_DB)
 
     def lock_queue(self):
         self.activity_lock.clear()
