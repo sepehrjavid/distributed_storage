@@ -146,7 +146,7 @@ class PeerController(metaclass=Singleton):
         meta_data = dict(parse.parse(CONFIRM_HANDSHAKE, handshake_confirmation).named)
         data_node = DataNode(db=self.db_connection, ip_address=ip_address,
                              available_byte_size=meta_data["available_byte_size"],
-                             rack_number=meta_data["rack_number"], last_seen=monotonic()).save()
+                             rack_number=meta_data["rack_number"], last_seen=monotonic())
         data_node.save()
 
         if len(self.peers) > 1:
