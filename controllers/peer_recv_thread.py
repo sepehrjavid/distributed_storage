@@ -31,8 +31,6 @@ class PeerRecvThread(Thread):
     def handle_message(self, message):
         if message.split(MESSAGE_SEPARATOR)[0] == INTRODUCE_PEER.split(MESSAGE_SEPARATOR)[0]:
             self.add_peer(message)
-        elif message == REQUEST_DB:
-            self.transfer_db()
         elif message == SEND_DB:
             self.receive_db()
         elif message.split(MESSAGE_SEPARATOR)[0] == UPDATE_DATA_NODE.split(MESSAGE_SEPARATOR)[0]:
@@ -40,12 +38,6 @@ class PeerRecvThread(Thread):
         elif message == STOP_FRIENDSHIP:
             self.session.close()
             self.continues = False
-
-    def transfer_db(self):
-        self.session.transfer_data(SEND_DB)
-        file_session = FileSession()
-        file_session.transfer_file(MetaDatabase.DATABASE_PATH, self.session)
-        print("transfer database")
 
     def receive_db(self):
         file_session = FileSession()

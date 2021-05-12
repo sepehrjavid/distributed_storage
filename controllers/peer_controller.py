@@ -8,7 +8,7 @@ except ImportError:
     from queue import Empty
 
 from threading import Thread, Event
-from time import monotonic
+from time import monotonic, sleep
 
 import parse
 
@@ -20,9 +20,9 @@ from meta_data.models.data_node import DataNode
 from servers.peer_server import PeerBroadcastServer
 from servers.valid_messages import (INTRODUCE_PEER, CONFIRM_HANDSHAKE, MESSAGE_SEPARATOR, NULL, RESPOND_TO_BROADCAST,
                                     REJECT, REQUEST_DB, JOIN_NETWORK, ACCEPT, RESPOND_TO_INTRODUCTION, BLOCK_QUEUEING,
-                                    UNBLOCK_QUEUEING, ABORT_JOIN, UPDATE_DATA_NODE)
+                                    UNBLOCK_QUEUEING, ABORT_JOIN, UPDATE_DATA_NODE, SEND_DB)
 from session.exceptions import PeerTimeOutException
-from session.sessions import SimpleSession
+from session.sessions import SimpleSession, FileSession
 from singleton.singleton import Singleton
 
 
@@ -115,7 +115,6 @@ class PeerController(metaclass=Singleton):
             if response == REJECT:
                 new_peer_session.close()
                 print("peer did not accept my help :(")
-                self.peer_transmitter.transmit()
                 return
             new_peer_session = new_peer_session.convert_to_encrypted_session()
         except PeerTimeOutException:
@@ -156,6 +155,7 @@ class PeerController(metaclass=Singleton):
             lost_peer = self.peers.pop(0)
 
         self.peers.append(thread)
+        self.transfer_db(thread.session)
         print(self.peers)
 
     def inform_next_node(self, message):
@@ -235,9 +235,14 @@ class PeerController(metaclass=Singleton):
             MetaDatabase.initialize_tables()
             DataNode(db=self.db_connection, ip_address=self.ip_address, rack_number=self.rack_number,
                      available_byte_size=self.available_byte_size, last_seen=monotonic()).save()
-        else:
-            self.retrieve_database()
 
         self.storage_communicator_thread.start()
         print("Storage communicator started")
         self.broadcast_server.start()
+
+    @staticmethod
+    def transfer_db(session):
+        session.transfer_data(SEND_DB)
+        file_session = FileSession()
+        file_session.transfer_file(MetaDatabase.DATABASE_PATH, session)
+        print("transfer database")
