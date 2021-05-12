@@ -1,5 +1,5 @@
 from broadcast.servers import SimpleBroadcastServer
-from servers.valid_messages import JOIN_NETWORK, UNBLOCK_QUEUEING, BLOCK_QUEUEING
+from valid_messages import JOIN_NETWORK, UNBLOCK_QUEUEING, BLOCK_QUEUEING
 from singleton.singleton import Singleton
 
 

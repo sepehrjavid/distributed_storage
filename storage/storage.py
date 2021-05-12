@@ -1,3 +1,5 @@
+from multiprocessing import Process
+
 from meta_data.database import MetaDatabase
 from meta_data.models.data_node import DataNode
 from meta_data.models.chunk import Chunk
@@ -13,7 +15,8 @@ class Storage(metaclass=Singleton):
     REPLICATION_FACTOR = 4
     METADATA_MANDATORY_FIELDS = ["title", "sequence", "chunk_size", "permission"]
 
-    def __init__(self, storage_path, current_data_node):
+    def __init__(self, storage_path, current_data_node, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.storage_path = storage_path
         self.db = MetaDatabase()
         if isinstance(current_data_node, DataNode) and DataNode.fetch_by_id(current_data_node.id, self.db) is not None:

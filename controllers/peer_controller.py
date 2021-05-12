@@ -1,6 +1,6 @@
 import ipaddress
 import socket
-from multiprocessing import Queue
+from multiprocessing import Queue, Process
 
 try:
     from _queue import Empty
@@ -18,22 +18,23 @@ from controllers.peer_recv_thread import PeerRecvThread
 from meta_data.database import MetaDatabase
 from meta_data.models.data_node import DataNode
 from servers.peer_server import PeerBroadcastServer
-from servers.valid_messages import (INTRODUCE_PEER, CONFIRM_HANDSHAKE, MESSAGE_SEPARATOR, NULL, RESPOND_TO_BROADCAST,
-                                    REJECT, JOIN_NETWORK, ACCEPT, RESPOND_TO_INTRODUCTION, BLOCK_QUEUEING,
-                                    UNBLOCK_QUEUEING, ABORT_JOIN, UPDATE_DATA_NODE, SEND_DB)
+from valid_messages import (INTRODUCE_PEER, CONFIRM_HANDSHAKE, MESSAGE_SEPARATOR, NULL, RESPOND_TO_BROADCAST,
+                            REJECT, JOIN_NETWORK, ACCEPT, RESPOND_TO_INTRODUCTION, BLOCK_QUEUEING,
+                            UNBLOCK_QUEUEING, ABORT_JOIN, UPDATE_DATA_NODE, SEND_DB)
 from session.exceptions import PeerTimeOutException
 from session.sessions import SimpleSession, FileSession
 from singleton.singleton import Singleton
 
 
-class PeerController(metaclass=Singleton):
+class PeerController(Process, metaclass=Singleton):
     PORT_NUMBER = 50502
     CONFIG_FILE_PATH = "dfs.conf"
     SOCKET_ACCEPT_TIMEOUT = 3
     JOIN_TRY_LIMIT = 3
     MANDATORY_FIELDS = ["ip_address", "network_id", "rack_number", "available_byte_size"]
 
-    def __init__(self, activity_queue: Queue):
+    def __init__(self, activity_queue: Queue, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.config = None
         self.update_config_file()
         print("DFS configuration loaded successfully")
@@ -45,17 +46,9 @@ class PeerController(metaclass=Singleton):
         self.peer_transmitter = SimpleTransmitter(broadcast_address=self.broadcast_address,
                                                   port_number=PeerBroadcastServer.PORT_NUMBER)
 
-        self.db_connection = MetaDatabase()
-        self.activity_lock = Event()
-        self.activity_lock.set()
         self.activity_queue = activity_queue
-
-        self.broadcast_server = PeerBroadcastServer(broadcast_address=self.broadcast_address, peer_controller=self)
-        self.storage_communicator_thread = Thread(target=self.handle_storage_process_messages,
-                                                  args=[self.activity_lock])
-        self.storage_communicator_thread.daemon = True
-
         self.peers = []
+        self.broadcast_server = PeerBroadcastServer(broadcast_address=self.broadcast_address, peer_controller=self)
 
     def update_config_file(self):
         with open(self.CONFIG_FILE_PATH, "r") as config_file:
@@ -222,7 +215,15 @@ class PeerController(metaclass=Singleton):
         print("confirmed both peers")
         return [peer_session, suggested_peer_session]
 
-    def start(self):
+    # noinspection PyAttributeOutsideInit
+    def run(self):
+        self.db_connection = MetaDatabase()
+        self.activity_lock = Event()
+        self.activity_lock.set()
+        self.storage_communicator_thread = Thread(target=self.handle_storage_process_messages,
+                                                  args=[self.activity_lock])
+        self.storage_communicator_thread.daemon = True
+
         peers_sessions = self.join_network()
         for peer in peers_sessions:
             self.peers.append(PeerRecvThread(session=peer, controller=self))
