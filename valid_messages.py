@@ -19,7 +19,7 @@ Peer Valid Messages
 JOIN_NETWORK = "join"
 INTRODUCE_PEER = "intro-{ip_address}"
 CONFIRM_HANDSHAKE = "confirm-{available_byte_size}-{rack_number}"
-STOP_FRIENDSHIP = "stop-fr"
+STOP_FRIENDSHIP = "stop_fr"
 RESPOND_TO_BROADCAST = "broadcast"
 RESPOND_TO_INTRODUCTION = "introduction"
 SEND_DB = "snddb"
@@ -41,3 +41,9 @@ Metadata Events
 """
 
 UPDATE_DATA_NODE = "nwnd-{ip_address}-{available_byte_size}-{rack_number}"
+
+"""
+Inter-Process Communication
+"""
+
+START_CLIENT_SERVER = "start"

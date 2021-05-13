@@ -1,6 +1,7 @@
 import ipaddress
 import socket
-from multiprocessing import Queue, Process
+from multiprocessing import Process
+from multiprocessing.connection import Connection
 
 try:
     from _queue import Empty
@@ -8,7 +9,7 @@ except ImportError:
     from queue import Empty
 
 from threading import Thread, Event
-from time import monotonic
+from time import monotonic, sleep
 
 import parse
 
@@ -31,9 +32,9 @@ class PeerController(Process, metaclass=Singleton):
     CONFIG_FILE_PATH = "dfs.conf"
     SOCKET_ACCEPT_TIMEOUT = 3
     JOIN_TRY_LIMIT = 3
-    MANDATORY_FIELDS = ["ip_address", "network_id", "rack_number", "available_byte_size"]
+    MANDATORY_FIELDS = ["ip_address", "network_id", "rack_number", "available_byte_size", "path"]
 
-    def __init__(self, activity_queue: Queue, *args, **kwargs):
+    def __init__(self, client_controller_pipe: Connection, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.config = None
         self.update_config_file()
@@ -46,7 +47,7 @@ class PeerController(Process, metaclass=Singleton):
         self.peer_transmitter = SimpleTransmitter(broadcast_address=self.broadcast_address,
                                                   port_number=PeerBroadcastServer.PORT_NUMBER)
 
-        self.activity_queue = activity_queue
+        self.client_controller_pipe = client_controller_pipe
         self.peers = []
         self.broadcast_server = PeerBroadcastServer(broadcast_address=self.broadcast_address, peer_controller=self)
 
@@ -90,11 +91,10 @@ class PeerController(Process, metaclass=Singleton):
             i += 1
             activity_lock.wait()
             print(f"number: {i}")
-            try:
-                message = self.activity_queue.get(timeout=1)
+            if self.client_controller_pipe.poll():
+                message = self.client_controller_pipe.recv()
                 self.inform_next_node(message)
-            except Empty:
-                continue
+            sleep(1)
 
     def add_peer(self, ip_address):
         print(f"ready to add peer {ip_address}")
