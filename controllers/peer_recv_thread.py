@@ -6,7 +6,7 @@ import parse
 from meta_data.database import MetaDatabase
 from meta_data.models.data_node import DataNode
 from valid_messages import (CONFIRM_HANDSHAKE, STOP_FRIENDSHIP, RESPOND_TO_INTRODUCTION, ACCEPT, INTRODUCE_PEER,
-                            MESSAGE_SEPARATOR, SEND_DB, UPDATE_DATA_NODE, UNBLOCK_QUEUEING)
+                            MESSAGE_SEPARATOR, SEND_DB, UPDATE_DATA_NODE, UNBLOCK_QUEUEING, START_CLIENT_SERVER)
 from session.exceptions import PeerTimeOutException
 from session.sessions import SimpleSession, FileSession, EncryptedSession
 
@@ -42,6 +42,7 @@ class PeerRecvThread(Thread):
     def receive_db(self):
         file_session = FileSession()
         file_session.receive_file(MetaDatabase.DATABASE_PATH, self.session)
+        self.controller.client_controller_pipe.send(START_CLIENT_SERVER)
         self.controller.peer_transmitter.transmit(UNBLOCK_QUEUEING)
         self.controller.release_queue_lock()
 

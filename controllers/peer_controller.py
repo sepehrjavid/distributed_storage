@@ -21,7 +21,7 @@ from meta_data.models.data_node import DataNode
 from servers.peer_server import PeerBroadcastServer
 from valid_messages import (INTRODUCE_PEER, CONFIRM_HANDSHAKE, MESSAGE_SEPARATOR, NULL, RESPOND_TO_BROADCAST,
                             REJECT, JOIN_NETWORK, ACCEPT, RESPOND_TO_INTRODUCTION, BLOCK_QUEUEING,
-                            UNBLOCK_QUEUEING, ABORT_JOIN, UPDATE_DATA_NODE, SEND_DB)
+                            UNBLOCK_QUEUEING, ABORT_JOIN, UPDATE_DATA_NODE, SEND_DB, START_CLIENT_SERVER)
 from session.exceptions import PeerTimeOutException
 from session.sessions import SimpleSession, FileSession
 from singleton.singleton import Singleton
@@ -233,6 +233,7 @@ class PeerController(Process, metaclass=Singleton):
             MetaDatabase.initialize_tables()
             DataNode(db=self.db_connection, ip_address=self.ip_address, rack_number=self.rack_number,
                      available_byte_size=self.available_byte_size, last_seen=monotonic()).save()
+            self.client_controller_pipe.send(START_CLIENT_SERVER)
 
         self.storage_communicator_thread.start()
         print("Storage communicator started")

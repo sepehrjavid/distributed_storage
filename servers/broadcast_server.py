@@ -57,9 +57,10 @@ class BroadcastServer(SimpleBroadcastServer, metaclass=Singleton):
             sleep(self.CONTROLLER_INTERVAL)
             self.__remove_expired_clients()
 
-    def run(self):
+    def start(self):
+        print("broadcast server started")
         self.controller_thread = Thread(target=self.__active_client_controller_thread, args=[])
-        self.controller_thread.start()
+        # self.controller_thread.start()
         self._start()
 
 

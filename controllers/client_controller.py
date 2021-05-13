@@ -1,3 +1,4 @@
+import ipaddress
 from multiprocessing import Process
 from multiprocessing.connection import Connection
 from threading import Thread
@@ -24,6 +25,7 @@ class ClientController(Process, metaclass=Singleton):
         self.rack_number = self.config.get("rack_number")
         self.available_byte_size = self.config.get("available_byte_size")
         self.storage_base_path = self.config.get("path")
+        self.broadcast_address = str(ipaddress.ip_network(self.network_id).broadcast_address)
 
         self.peer_controller_pipe = peer_controller_pipe
         self.db_connection = None
@@ -54,6 +56,8 @@ class ClientController(Process, metaclass=Singleton):
                                current_data_node=DataNode.fetch_by_ip(ip_address=self.ip_address,
                                                                       db=self.db_connection))
         self.data_node_server = DataNodeServer(ip_address=self.ip_address, storage=self.storage)
-        self.broadcast_server = BroadcastServer(broadcast_address=self.broadcast_server, storage=self.storage)
+        self.broadcast_server = BroadcastServer(broadcast_address=self.broadcast_address, storage=self.storage)
         self.data_node_server_thread = Thread(target=self.data_node_server.run, args=[])
-        self.broadcast_server.run()
+        self.data_node_server_thread.start()
+        print("data node server started")
+        self.broadcast_server.start()
