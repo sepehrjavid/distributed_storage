@@ -27,8 +27,8 @@ class Storage(metaclass=Singleton):
     def is_valid_path(self, path):
         return self.storage_path in path and os.path.isfile(path)
 
-    def choose_data_node_to_save(self, file_size):
-        all_nodes = DataNode.fetch_all()
+    def choose_data_node_to_save(self, file_size, db):
+        all_nodes = DataNode.fetch_all(db=db)
 
         if sum([x.available_byte_size for x in all_nodes]) < file_size:
             return None

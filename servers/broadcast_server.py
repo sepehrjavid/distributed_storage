@@ -6,6 +6,7 @@ from time import time
 import parse
 
 from broadcast.servers import SimpleBroadcastServer
+from meta_data.database import MetaDatabase
 from valid_messages import CREATE_FILE, DELETE_FILE, MESSAGE_SEPARATOR, OUT_OF_SPACE, ACCEPT
 from session.exceptions import PeerTimeOutException
 from session.sessions import EncryptedSession
@@ -14,8 +15,8 @@ from singleton.singleton import Singleton
 
 class BroadcastServer(SimpleBroadcastServer, metaclass=Singleton):
     MAXIMUM_CLIENT_ALLOWED = 30
-    MAXIMUM_CLIENT_HANDLE_TIME = 3 * 60
-    CONTROLLER_INTERVAL = 10
+    MAXIMUM_CLIENT_HANDLE_TIME = 4 * 60
+    CONTROLLER_INTERVAL = 5
     BROADCAST_SERVER_PORT_NUMBER = 54222
     CLIENT_PORT_NUMBER = BROADCAST_SERVER_PORT_NUMBER
 
@@ -60,7 +61,7 @@ class BroadcastServer(SimpleBroadcastServer, metaclass=Singleton):
     def start(self):
         print("broadcast server started")
         self.controller_thread = Thread(target=self.__active_client_controller_thread, args=[])
-        # self.controller_thread.start()
+        self.controller_thread.start()
         self._start()
 
 
@@ -69,8 +70,10 @@ class ClientThread(Thread):
         super(ClientThread, self).__init__(*args, **kwargs)
         self.client_data = client_data
         self.storage = storage
+        self.db_connection = None
 
     def run(self):
+        self.db_connection = MetaDatabase()
         try:
             session = EncryptedSession(ip_address=self.client_data.get("ip_address"),
                                        port_number=BroadcastServer.CLIENT_PORT_NUMBER)
@@ -88,9 +91,8 @@ class ClientThread(Thread):
 
     def create_file(self, session, command):
         file_size = int(dict(parse.parse(CREATE_FILE, command).named)["total_size"])
-        data_nodes = self.storage.choose_data_node_to_save(file_size)
+        data_nodes = self.storage.choose_data_node_to_save(file_size=file_size, db=self.db_connection)
         if data_nodes is None:
-            print("out of space")
             session.transfer_data(OUT_OF_SPACE)
         else:
             session.transfer_data(ACCEPT)

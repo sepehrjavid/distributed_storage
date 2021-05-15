@@ -28,8 +28,7 @@ class DataNodeServer(metaclass=Singleton):
     def __remove_expired_clients(self):
         with self.active_clients_lock:
             for client in self.active_clients:
-                if time() - client["start_time"] >= self.MAXIMUM_CLIENT_HANDLE_TIME:
-                    # TODO kill client thread
+                if not client["thread"].is_alive() or time() - client["start_time"] >= self.MAXIMUM_CLIENT_HANDLE_TIME:
                     self.active_clients.remove(client)
 
     def __active_client_controller_thread(self):
@@ -66,52 +65,56 @@ class ClientThread(Thread):
         super(ClientThread, self).__init__(*args, **kwargs)
         self.client_data = client_data
         self.storage = storage
+        self.session = None
 
     def run(self):
-        session = EncryptedSession(input_socket=self.client_data.get("socket"), is_server=True)
-        command = session.receive_data()
+        self.session = EncryptedSession(input_socket=self.client_data.get("socket"), is_server=True)
+        command = self.session.receive_data()
         if command.split(MESSAGE_SEPARATOR)[0] == CREATE_CHUNK.split(MESSAGE_SEPARATOR)[0]:
+            pass
+        elif command.split(MESSAGE_SEPARATOR)[0] == DELETE_CHUNK.split(MESSAGE_SEPARATOR)[0]:
+            pass
+
+    def create_chunk(self, message):
+        try:
+            meta_data = dict(parse.parse(CREATE_CHUNK, message).named)
+        except ValueError:
+            self.session.transfer_data(INVALID_METADATA)
+            self.session.close()
+            return
+
+        if self.storage.is_valid_metadata(meta_data):
+            possible_chunk = Chunk.fetch_by_title_and_permission(title=meta_data.get("title"),
+                                                                 permission=meta_data.get("permission"))
+            if possible_chunk is not None:
+                self.session.transfer_data(DUPLICATE_FILE_FOR_USER)
+                self.session.close()
+                return
+
             try:
-                meta_data = dict(parse.parse(CREATE_CHUNK, command).named)
-            except ValueError:
-                session.transfer_data(INVALID_METADATA)
+                self.storage.update_byte_size(-int(meta_data.get("chunk_size")))
+            except NotEnoughSpace:
+                session.transfer_data(OUT_OF_SPACE)
                 session.close()
                 return
 
-            if self.storage.is_valid_metadata(meta_data):
-                possible_chunk = Chunk.fetch_by_title_and_permission(title=meta_data.get("title"),
-                                                                     permission=meta_data.get("permission"))
-                if possible_chunk is not None:
-                    session.transfer_data(DUPLICATE_FILE_FOR_USER)
-                    session.close()
-                    return
+            session.transfer_data(ACCEPT)
 
-                try:
-                    self.storage.update_byte_size(-int(meta_data.get("chunk_size")))
-                except NotEnoughSpace:
-                    session.transfer_data(OUT_OF_SPACE)
-                    session.close()
-                    return
-
-                session.transfer_data(ACCEPT)
-
-                if "." in meta_data.get("title") and meta_data.get("title").split(".")[-1] != '':
-                    destination_file_path = self.storage.get_new_file_path(
-                        extension=meta_data.get("title").split(".")[-1])
-                else:
-                    destination_file_path = self.storage.get_new_file_path()
-
-                file_session = FileSession()
-                file_session.receive_file(destination_file_path, session=session,
-                                          replication_list=self.storage.get_replication_data_nodes(
-                                              int(meta_data.get("chunk_size"))))
-
-                self.storage.add_chunk(sequence=meta_data.get("sequence"), title=meta_data.get("title"),
-                                       permission=meta_data.get("permission"), local_path=destination_file_path,
-                                       chunk_size=meta_data.get("chunk_size"))
+            if "." in meta_data.get("title") and meta_data.get("title").split(".")[-1] != '':
+                destination_file_path = self.storage.get_new_file_path(
+                    extension=meta_data.get("title").split(".")[-1])
             else:
-                session.transfer_data(INVALID_METADATA)
-                session.close()
+                destination_file_path = self.storage.get_new_file_path()
 
-        elif command.split(MESSAGE_SEPARATOR)[0] == DELETE_CHUNK.split(MESSAGE_SEPARATOR)[0]:
-            pass
+            file_session = FileSession()
+            file_session.receive_file(destination_file_path, session=session,
+                                      replication_list=self.storage.get_replication_data_nodes(
+                                          int(meta_data.get("chunk_size"))))
+
+            self.storage.add_chunk(sequence=meta_data.get("sequence"), title=meta_data.get("title"),
+                                   permission=meta_data.get("permission"), local_path=destination_file_path,
+                                   chunk_size=meta_data.get("chunk_size"))
+        else:
+            self.session.transfer_data(INVALID_METADATA)
+            self.session.close()
+
