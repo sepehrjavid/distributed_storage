@@ -109,7 +109,8 @@ class ClientThread(Thread):
             user.save()
             main_directory = Directory(db=self.db_connection, title=Directory.MAIN_DIR_NAME, parent_directory_id=None)
             main_directory.save()
-            permission = Permission(directory_id=main_directory.id, user_id=user.id, perm=Permission.READ_WRITE)
+            permission = Permission(db=self.db_connection, directory_id=main_directory.id, user_id=user.id,
+                                    perm=Permission.READ_WRITE)
             permission.save()
             self.storage.controller.infrom_modification(NEW_USER.format(username=username, password=password))
             self.session.transfer_data(ACCEPT)

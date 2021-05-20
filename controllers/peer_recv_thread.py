@@ -58,7 +58,8 @@ class PeerRecvThread(Thread):
             user.save()
             main_directory = Directory(db=self.db, title=Directory.MAIN_DIR_NAME, parent_directory_id=None)
             main_directory.save()
-            permission = Permission(directory_id=main_directory.id, user_id=user.id, perm=Permission.READ_WRITE)
+            permission = Permission(db=self.db, directory_id=main_directory.id, user_id=user.id,
+                                    perm=Permission.READ_WRITE)
             permission.save()
             self.controller.inform_next_node(message)
 

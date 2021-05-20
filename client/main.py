@@ -40,5 +40,5 @@ class Main:
 
 
 if __name__ == "__main__":
-    program = Main("Alexandra", "192.168.1.13")
+    program = Main("sep", "192.168.1.12")
     program.run()
