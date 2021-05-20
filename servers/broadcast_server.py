@@ -167,10 +167,12 @@ class ClientThread(Thread):
         if data_nodes is None:
             self.session.transfer_data(OUT_OF_SPACE)
         else:
+            user = User.fetch_by_username(username=username, db=self.db_connection)
             file = File(db=self.db_connection, title=meta_data.get("title"), is_complete=False,
                         extension=meta_data.get("extension"), directory_id=requested_dir.id,
                         sequence_num=len(data_nodes))
             file.save()
+            Permission(db=self.db_connection, perm=Permission.READ_WRITE, file_id=file.id, user_id=user.id).save()
             self.storage.controller.infrom_modification(NEW_FILE.format(title=meta_data.get("title"),
                                                                         extension=meta_data.get("extension"),
                                                                         path=meta_data.get("path"),
@@ -181,9 +183,3 @@ class ClientThread(Thread):
             self.session.transfer_data(ACCEPT)
             self.session.transfer_data(pickle.dumps(data_nodes), encode=False)
         self.session.close()
-
-    def delete_file(self):
-        pass
-
-    def retrieve_file(self, command):
-        pass

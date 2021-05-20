@@ -6,11 +6,12 @@ import parse
 from meta_data.database import MetaDatabase
 from meta_data.models.data_node import DataNode
 from meta_data.models.directory import Directory
+from meta_data.models.file import File
 from meta_data.models.permission import Permission
 from meta_data.models.user import User
 from valid_messages import (CONFIRM_HANDSHAKE, STOP_FRIENDSHIP, RESPOND_TO_INTRODUCTION, ACCEPT, INTRODUCE_PEER,
                             MESSAGE_SEPARATOR, SEND_DB, UPDATE_DATA_NODE, UNBLOCK_QUEUEING, START_CLIENT_SERVER,
-                            NEW_USER)
+                            NEW_USER, NEW_FILE)
 from session.exceptions import PeerTimeOutException
 from session.sessions import SimpleSession, FileSession, EncryptedSession
 
@@ -42,6 +43,8 @@ class PeerRecvThread(Thread):
             self.update_data_node(message)
         elif command == NEW_USER.split(MESSAGE_SEPARATOR)[0]:
             self.create_account(message)
+        elif command == NEW_FILE.split(MESSAGE_SEPARATOR)[0]:
+            self.create_file(message)
         elif message == STOP_FRIENDSHIP:
             self.session.close()
             self.continues = False
@@ -62,6 +65,17 @@ class PeerRecvThread(Thread):
                                     perm=Permission.READ_WRITE)
             permission.save()
             self.controller.inform_next_node(message)
+
+    def create_file(self, message):
+        meta_data = dict(parse.parse(NEW_FILE, message).named)
+        user = User.fetch_by_username(username=meta_data.get("username"), db=self.db)
+        requested_dir = Directory.find_path_directory(
+            main_dir=Directory.fetch_user_main_directory(username=user.username, db=self.db),
+            path=meta_data.get("path"))
+        file = File(db=self.db, title=meta_data.get("title"), extension=meta_data.get("extension"),
+                    sequence_num=meta_data.get("sequence_num"), directory_id=requested_dir.id, is_complete=False)
+        file.save()
+        Permission(db=self.db, perm=Permission.READ_WRITE, file_id=file.id, user_id=user.id).save()
 
     def receive_db(self):
         file_session = FileSession()
