@@ -54,10 +54,13 @@ class ClientController(Process, metaclass=Singleton):
 
         self.storage = Storage(storage_path=self.storage_base_path,
                                current_data_node=DataNode.fetch_by_ip(ip_address=self.ip_address,
-                                                                      db=self.db_connection))
+                                                                      db=self.db_connection), controller=self)
         self.data_node_server = DataNodeServer(ip_address=self.ip_address, storage=self.storage)
         self.broadcast_server = BroadcastServer(broadcast_address=self.broadcast_address, storage=self.storage)
         self.data_node_server_thread = Thread(target=self.data_node_server.run, args=[])
         self.data_node_server_thread.start()
         print("data node server started")
         self.broadcast_server.start()
+
+    def inform_modification(self, message):
+        self.peer_controller_pipe.send(message)

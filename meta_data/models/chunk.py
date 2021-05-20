@@ -30,6 +30,10 @@ class Chunk:
     def delete(self):
         self.db.execute("DELETE FROM chunk WHERE id = ?;", self.id)
 
+    @staticmethod
+    def fetch_by_user_filename_directory_name(username, filename, directory_path):
+        pass
+
     @property
     def file(self):
         return File.fetch_by_id(self.file_id, self.db)

@@ -12,13 +12,13 @@ from storage.exceptions import InvalidFilePath, ChunkNotFound, DataNodeNotSaved
 
 class Storage(metaclass=Singleton):
     CHUNK_SIZE = 64 * (10 ** 6)
-    REPLICATION_FACTOR = 4
-    METADATA_MANDATORY_FIELDS = ["title", "sequence", "chunk_size", "permission"]
+    REPLICATION_FACTOR = 3
 
-    def __init__(self, storage_path, current_data_node, *args, **kwargs):
+    def __init__(self, storage_path, current_data_node, controller, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.storage_path = storage_path
         self.db = MetaDatabase()
+        self.controller = controller
         if isinstance(current_data_node, DataNode) and DataNode.fetch_by_id(current_data_node.id, self.db) is not None:
             self.current_data_node = current_data_node
         else:
@@ -121,11 +121,3 @@ class Storage(metaclass=Singleton):
             i += 1
 
         return result
-
-    @staticmethod
-    def is_valid_metadata(metadata):
-        meta_data_keys = metadata.keys()
-        for key in Storage.METADATA_MANDATORY_FIELDS:
-            if key not in meta_data_keys:
-                return False
-        return True

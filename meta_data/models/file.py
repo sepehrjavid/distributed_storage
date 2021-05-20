@@ -45,5 +45,19 @@ class File:
         return File(db=db, id=result[0], title=result[1], extension=result[2], is_complete=temp, directory_id=result[4],
                     sequence_num=result[5])
 
+    @staticmethod
+    def fetch_by_dir_id(dir_id, db: MetaDatabase):
+        result = db.fetch("SELECT * FROM file WHERE directory_id=?;", dir_id)
+
+        files = []
+        for data in result:
+            temp = True if data[3] == 1 else False
+            files.append(
+                File(db=db, id=data[0], title=data[1], extension=data[2], is_complete=temp, directory_id=data[4],
+                     sequence_num=result[5])
+            )
+
+        return files
+
     def __del__(self):
         self.db.close()

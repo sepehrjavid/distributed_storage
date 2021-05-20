@@ -1,4 +1,5 @@
 from meta_data.database import MetaDatabase
+from meta_data.models.directory import Directory
 
 
 class User:
@@ -24,10 +25,17 @@ class User:
         self.db.execute("DELETE FROM users WHERE id=?", self.id)
         self.id = None
 
+    def get_directories(self):
+        return Directory.fetch_by_username(username=self.username, db=self.db)
+
     @staticmethod
     def fetch_by_id(id, db: MetaDatabase):
         result = db.fetch("SELECT * FROM users WHERE id=?;", id)[0]
+        return User(db=db, id=result[0], username=result[1], password=result[2])
 
+    @staticmethod
+    def fetch_by_username(username, db: MetaDatabase):
+        result = db.fetch("SELECT * FROM users WHERE username=?;", username)[0]
         return User(db=db, id=result[0], username=result[1], password=result[2])
 
     @staticmethod

@@ -7,7 +7,10 @@ import parse
 
 from broadcast.servers import SimpleBroadcastServer
 from meta_data.database import MetaDatabase
-from valid_messages import CREATE_FILE, DELETE_FILE, MESSAGE_SEPARATOR, OUT_OF_SPACE, ACCEPT
+from meta_data.models.directory import Directory
+from meta_data.models.file import File
+from valid_messages import CREATE_FILE, DELETE_FILE, MESSAGE_SEPARATOR, OUT_OF_SPACE, ACCEPT, DUPLICATE_FILE_FOR_USER, \
+    NEW_FILE
 from session.exceptions import PeerTimeOutException
 from session.sessions import EncryptedSession
 from singleton.singleton import Singleton
@@ -71,36 +74,61 @@ class ClientThread(Thread):
         self.client_data = client_data
         self.storage = storage
         self.db_connection = None
+        self.session = None
 
     def run(self):
         self.db_connection = MetaDatabase()
         try:
-            session = EncryptedSession(ip_address=self.client_data.get("ip_address"),
-                                       port_number=BroadcastServer.CLIENT_PORT_NUMBER)
+            self.session = EncryptedSession(ip_address=self.client_data.get("ip_address"),
+                                            port_number=BroadcastServer.CLIENT_PORT_NUMBER)
         except PeerTimeOutException:
             return
 
         command = self.client_data.get("command")
 
         if command.split(MESSAGE_SEPARATOR)[0] == CREATE_FILE.split(MESSAGE_SEPARATOR)[0]:
-            self.create_file(session, command)
+            self.create_file(command)
         elif command.split(MESSAGE_SEPARATOR)[0] == CREATE_FILE.split(MESSAGE_SEPARATOR)[0]:
             pass
         elif command == DELETE_FILE:
-            self.delete_file(session)
+            self.delete_file()
 
-    def create_file(self, session, command):
-        file_size = int(dict(parse.parse(CREATE_FILE, command).named)["total_size"])
-        data_nodes = self.storage.choose_data_node_to_save(file_size=file_size, db=self.db_connection)
+    def create_file(self, command):
+        meta_data = dict(parse.parse(CREATE_FILE, command).named)
+
+        requested_dir = Directory.find_path_directory(
+            main_dir=Directory.fetch_user_main_directory(username=meta_data.get("username"), db=self.db_connection),
+            path=meta_data.get("path"))
+
+        if f"{meta_data.get('title')}.{meta_data.get('extension')}" in [f"{x.title}.{x.extension}" for x in
+                                                                        requested_dir.files]:
+            self.session.transfer_data(DUPLICATE_FILE_FOR_USER)
+            self.session.close()
+            return
+
+        data_nodes = self.storage.choose_data_node_to_save(file_size=int(meta_data.get("total_size")),
+                                                           db=self.db_connection)
+
         if data_nodes is None:
-            session.transfer_data(OUT_OF_SPACE)
+            self.session.transfer_data(OUT_OF_SPACE)
         else:
-            session.transfer_data(ACCEPT)
-            session.transfer_data(pickle.dumps(data_nodes), encode=False)
-        session.close()
+            file = File(db=self.db_connection, title=meta_data.get("title"), is_complete=False,
+                        extension=meta_data.get("extension"), directory_id=requested_dir.id,
+                        sequence_num=len(data_nodes))
+            file.save()
+            self.storage.controller.infrom_modification(NEW_FILE.format(title=meta_data.get("title"),
+                                                                        extension=meta_data.get("extension"),
+                                                                        path=meta_data.get("path"),
+                                                                        sequence_num=len(data_nodes),
+                                                                        username=meta_data.get("username")
+                                                                        ))
 
-    def delete_file(self, session):
+            self.session.transfer_data(ACCEPT)
+            self.session.transfer_data(pickle.dumps(data_nodes), encode=False)
+        self.session.close()
+
+    def delete_file(self):
         pass
 
-    def retrieve_file(self, session, command):
+    def retrieve_file(self, command):
         pass

@@ -1,4 +1,7 @@
+from meta_data.database import MetaDatabase
 from meta_data.models.chunk import Chunk
+from meta_data.models.directory import Directory
+from meta_data.models.user import User
 from valid_messages import (CREATE_CHUNK, DELETE_CHUNK, INVALID_METADATA, MESSAGE_SEPARATOR, OUT_OF_SPACE,
                             ACCEPT, DUPLICATE_FILE_FOR_USER)
 from session.sessions import EncryptedSession, FileSession
@@ -66,8 +69,10 @@ class ClientThread(Thread):
         self.client_data = client_data
         self.storage = storage
         self.session = None
+        self.db = None
 
     def run(self):
+        self.db = MetaDatabase()
         self.session = EncryptedSession(input_socket=self.client_data.get("socket"), is_server=True)
         command = self.session.receive_data()
         if command.split(MESSAGE_SEPARATOR)[0] == CREATE_CHUNK.split(MESSAGE_SEPARATOR)[0]:
@@ -83,38 +88,28 @@ class ClientThread(Thread):
             self.session.close()
             return
 
-        if self.storage.is_valid_metadata(meta_data):
-            possible_chunk = Chunk.fetch_by_title_and_permission(title=meta_data.get("title"),
-                                                                 permission=meta_data.get("permission"))
-            if possible_chunk is not None:
-                self.session.transfer_data(DUPLICATE_FILE_FOR_USER)
-                self.session.close()
-                return
 
-            try:
-                self.storage.update_byte_size(-int(meta_data.get("chunk_size")))
-            except NotEnoughSpace:
-                session.transfer_data(OUT_OF_SPACE)
-                session.close()
-                return
 
-            session.transfer_data(ACCEPT)
-
-            if "." in meta_data.get("title") and meta_data.get("title").split(".")[-1] != '':
-                destination_file_path = self.storage.get_new_file_path(
-                    extension=meta_data.get("title").split(".")[-1])
-            else:
-                destination_file_path = self.storage.get_new_file_path()
-
-            file_session = FileSession()
-            file_session.receive_file(destination_file_path, session=session,
-                                      replication_list=self.storage.get_replication_data_nodes(
-                                          int(meta_data.get("chunk_size"))))
-
-            self.storage.add_chunk(sequence=meta_data.get("sequence"), title=meta_data.get("title"),
-                                   permission=meta_data.get("permission"), local_path=destination_file_path,
-                                   chunk_size=meta_data.get("chunk_size"))
-        else:
-            self.session.transfer_data(INVALID_METADATA)
+        try:
+            self.storage.update_byte_size(-int(meta_data.get("chunk_size")))
+        except NotEnoughSpace:
+            self.session.transfer_data(OUT_OF_SPACE)
             self.session.close()
+            return
 
+        session.transfer_data(ACCEPT)
+
+        if "." in meta_data.get("title") and meta_data.get("title").split(".")[-1] != '':
+            destination_file_path = self.storage.get_new_file_path(
+                extension=meta_data.get("title").split(".")[-1])
+        else:
+            destination_file_path = self.storage.get_new_file_path()
+
+        file_session = FileSession()
+        file_session.receive_file(destination_file_path, session=session,
+                                  replication_list=self.storage.get_replication_data_nodes(
+                                      int(meta_data.get("chunk_size"))))
+
+        self.storage.add_chunk(sequence=meta_data.get("sequence"), title=meta_data.get("title"),
+                               permission=meta_data.get("permission"), local_path=destination_file_path,
+                               chunk_size=meta_data.get("chunk_size"))
