@@ -1,21 +1,26 @@
 """
-Client Messages
+Client-Peer Messages
 """
 
 MESSAGE_SEPARATOR = "-"
 CREATE_FILE = "crf-{total_size}-{path}-{username}-{title}-{extension}"
 DELETE_FILE = "rmf-{title}-{permission}"
 CREATE_CHUNK = "crc-{filename}-{sequence}-{chunk_size}-{username}-{path}"
-DELETE_CHUNK = "rmc"
-REPLICATE = "rpt-{title}-{sequence}-{chunk_size}-{permission}"
 OUT_OF_SPACE = "no_space"
 INVALID_METADATA = "meta_err"
-DUPLICATE_FILE_FOR_USER = "dup"
+DUPLICATE_FILE_FOR_USER = "dup_fil"
 NO_PERMISSION = "noperm"
 INVALID_PATH = "invld_path"
 
+LOGIN = "lgin"
+CREDENTIALS = "cred-{username}-{password}"
+USER_NOT_FOUND = "usr_not_fnd"
+AUTH_FAILED = "auth_fld"
+CREATE_ACCOUNT = "create_acc"
+DUPLICATE_ACCOUNT = "dup_acc"
+
 """
-Peer Messages
+Peer-Peer Messages
 """
 
 JOIN_NETWORK = "join"
@@ -29,6 +34,7 @@ UNBLOCK_QUEUEING = "unblck"
 BLOCK_QUEUEING = "blck"
 ABORT_JOIN = "abrt"
 NEW_FILE = "nwfl-{title}-{extension}-{username}-{path}-{sequence_num}"
+NEW_USER = "nwusr-{username}-{password}"
 # TODO clean messages
 
 

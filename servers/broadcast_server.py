@@ -10,8 +10,10 @@ from meta_data.database import MetaDatabase
 from meta_data.models.directory import Directory
 from meta_data.models.file import File
 from meta_data.models.permission import Permission
-from valid_messages import CREATE_FILE, DELETE_FILE, MESSAGE_SEPARATOR, OUT_OF_SPACE, ACCEPT, DUPLICATE_FILE_FOR_USER, \
-    NEW_FILE, NO_PERMISSION, INVALID_PATH
+from meta_data.models.user import User
+from valid_messages import (CREATE_FILE, MESSAGE_SEPARATOR, OUT_OF_SPACE, ACCEPT, DUPLICATE_FILE_FOR_USER,
+                            NEW_FILE, NO_PERMISSION, INVALID_PATH, LOGIN, CREDENTIALS, USER_NOT_FOUND, AUTH_FAILED,
+                            CREATE_ACCOUNT, DUPLICATE_ACCOUNT, NEW_USER)
 from session.exceptions import PeerTimeOutException
 from session.sessions import EncryptedSession
 from singleton.singleton import Singleton
@@ -89,10 +91,50 @@ class ClientThread(Thread):
 
         if command.split(MESSAGE_SEPARATOR)[0] == CREATE_FILE.split(MESSAGE_SEPARATOR)[0]:
             self.create_file(command)
-        elif command.split(MESSAGE_SEPARATOR)[0] == CREATE_FILE.split(MESSAGE_SEPARATOR)[0]:
-            pass
-        elif command == DELETE_FILE:
-            self.delete_file()
+        elif command == LOGIN:
+            self.login()
+        elif command == CREATE_ACCOUNT:
+            self.create_account()
+
+    def create_account(self):
+        credentials = self.session.receive_data()
+        meta_data = dict(parse.parse(CREDENTIALS, credentials).named)
+        username = meta_data.get("username")
+        password = meta_data.get("password")
+
+        user = User.fetch_by_username(username=username, db=self.db_connection)
+
+        if user is None:
+            user = User(db=self.db_connection, username=username, password=password)
+            user.save()
+            main_directory = Directory(db=self.db_connection, title=Directory.MAIN_DIR_NAME, parent_directory_id=None)
+            main_directory.save()
+            permission = Permission(directory_id=main_directory.id, user_id=user.id, perm=Permission.READ_WRITE)
+            permission.save()
+            self.storage.controller.infrom_modification(NEW_USER.format(username=username, password=password))
+            self.session.transfer_data(ACCEPT)
+        else:
+            self.session.transfer_data(DUPLICATE_ACCOUNT)
+
+        self.session.close()
+
+    def login(self):
+        credentials = self.session.receive_data()
+        meta_data = dict(parse.parse(CREDENTIALS, credentials).named)
+        username = meta_data.get("username")
+        password = meta_data.get("password")
+
+        user = User.fetch_by_username(username=username, db=self.db_connection)
+        if user is None:
+            self.session.transfer_data(USER_NOT_FOUND)
+            self.session.close()
+            return
+
+        if user.password == password:
+            self.session.transfer_data(ACCEPT)
+        else:
+            self.session.transfer_data(AUTH_FAILED)
+        self.session.close()
 
     def create_file(self, command):
         meta_data = dict(parse.parse(CREATE_FILE, command).named)

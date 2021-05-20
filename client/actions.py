@@ -12,7 +12,7 @@ import os
 from meta_data.models.data_node import DataNode
 from servers.broadcast_server import BroadcastServer
 from servers.data_node_server import DataNodeServer
-from valid_messages import CREATE_FILE, CREATE_CHUNK, ACCEPT, OUT_OF_SPACE
+from valid_messages import CREATE_FILE, CREATE_CHUNK, ACCEPT, OUT_OF_SPACE, LOGIN, CREDENTIALS, CREATE_ACCOUNT
 from session.sessions import EncryptedSession, FileSession
 
 
@@ -87,8 +87,47 @@ class ClientActions:
 
         return client_socket
 
-    def send_file(self, file_path):
-        client_socket = self.ask_for_service(message=CREATE_FILE.format(total_size=os.path.getsize(file_path)))
+    def create_account(self):
+        username = input("Username: ")
+        password = input("Password: ")
+
+        client_socket = self.ask_for_service(CREATE_ACCOUNT)
+        session = EncryptedSession(input_socket=client_socket, is_server=True)
+        session.transfer_data(CREDENTIALS.format(username=username, password=password))
+        response = session.receive_data()
+
+        if response == ACCEPT:
+            return True
+        return False
+
+    def authenticate(self):
+        username = input("Username: ")
+        password = input("Password: ")
+
+        client_socket = self.ask_for_service(LOGIN)
+        session = EncryptedSession(input_socket=client_socket, is_server=True)
+        session.transfer_data(CREDENTIALS.format(username=username, password=password))
+        response = session.receive_data()
+
+        if response == ACCEPT:
+            return True
+        return False
+
+    def send_file(self, file_path, logical_path):
+        file_detail = ntpath.basename(file_path).split(".")
+
+        filename = file_detail[0]
+        if len(file_detail) == 1:
+            extension = None
+        else:
+            extension = file_detail[1]
+
+        client_socket = self.ask_for_service(message=CREATE_FILE.format(total_size=os.path.getsize(file_path),
+                                                                        path=logical_path,
+                                                                        username=self.username,
+                                                                        title=filename,
+                                                                        extension=extension
+                                                                        ))
 
         session = EncryptedSession(input_socket=client_socket, is_server=True)
         response = session.receive_data()

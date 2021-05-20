@@ -35,7 +35,12 @@ class User:
 
     @staticmethod
     def fetch_by_username(username, db: MetaDatabase):
-        result = db.fetch("SELECT * FROM users WHERE username=?;", username)[0]
+        result = db.fetch("SELECT * FROM users WHERE username=?;", username)
+
+        if len(result) == 0:
+            return None
+
+        result = result[0]
         return User(db=db, id=result[0], username=result[1], password=result[2])
 
     @staticmethod

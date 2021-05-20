@@ -3,6 +3,8 @@ from meta_data.models.file import File
 
 
 class Directory:
+    MAIN_DIR_NAME = "main"
+
     def __init__(self, db: MetaDatabase, **kwargs):
         self.db = db
         self.id = kwargs.get("id")
@@ -78,14 +80,15 @@ class Directory:
     def fetch_user_main_directory(username, db: MetaDatabase):
         result = db.fetch("""SELECT directory.id, directory.title, directory.parent_directory_id, p.perm FROM directory
                             INNER JOIN permission p ON directory.id = p.directory_id INNER JOIN 
-                            users u on p.user_id = u.id WHERE u.username=? AND directory.title='main';""")[0]
+                            users u on p.user_id = u.id WHERE u.username=? AND directory.title=?;""", username,
+                          Directory.MAIN_DIR_NAME)[0]
         return Directory(db=db, id=result[0], title=result[1], parent_directory_id=result[2])
 
     @staticmethod
     def find_path_directory(main_dir, path):
         path_dirs = path.split("/")
 
-        if path_dirs[0] != "main":
+        if path_dirs[0] != Directory.MAIN_DIR_NAME:
             return
 
         path_dirs = path_dirs[1:]
