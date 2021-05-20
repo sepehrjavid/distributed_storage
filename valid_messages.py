@@ -11,6 +11,8 @@ REPLICATE = "rpt-{title}-{sequence}-{chunk_size}-{permission}"
 OUT_OF_SPACE = "no_space"
 INVALID_METADATA = "meta_err"
 DUPLICATE_FILE_FOR_USER = "dup"
+NO_PERMISSION = "noperm"
+INVALID_PATH = "invld_path"
 
 """
 Peer Messages

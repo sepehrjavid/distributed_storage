@@ -26,6 +26,11 @@ class Directory:
     def delete(self):
         self.db.execute("DELETE FROM directory WHERE id=?;", self.id)
 
+    def get_user_permission(self, username):
+        result = self.db.fetch("""SELECT permission.perm FROM permission INNER JOIN directory d ON 
+                                permission.directory_id = d.id WHERE d.id=?;""", self.id)[0]
+        return result[0]
+
     @property
     def parent_directory(self):
         return Directory.fetch_by_id(self.parent_directory_id, self.db)
@@ -48,8 +53,8 @@ class Directory:
         return File.fetch_by_dir_id(dir_id=self.id, db=self.db)
 
     @staticmethod
-    def fetch_by_id(id, db: MetaDatabase):
-        result = db.fetch("SELECT * FROM directory WHERE id=?;", id)[0]
+    def fetch_by_id(dir_id, db: MetaDatabase):
+        result = db.fetch("SELECT * FROM directory WHERE id=?;", dir_id)[0]
         return Directory(db=db, id=result[0], title=result[1], parent_directory_id=result[2])
 
     @staticmethod

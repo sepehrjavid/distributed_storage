@@ -9,8 +9,9 @@ from broadcast.servers import SimpleBroadcastServer
 from meta_data.database import MetaDatabase
 from meta_data.models.directory import Directory
 from meta_data.models.file import File
+from meta_data.models.permission import Permission
 from valid_messages import CREATE_FILE, DELETE_FILE, MESSAGE_SEPARATOR, OUT_OF_SPACE, ACCEPT, DUPLICATE_FILE_FOR_USER, \
-    NEW_FILE
+    NEW_FILE, NO_PERMISSION, INVALID_PATH
 from session.exceptions import PeerTimeOutException
 from session.sessions import EncryptedSession
 from singleton.singleton import Singleton
@@ -95,10 +96,21 @@ class ClientThread(Thread):
 
     def create_file(self, command):
         meta_data = dict(parse.parse(CREATE_FILE, command).named)
+        username = meta_data.get("username")
 
         requested_dir = Directory.find_path_directory(
-            main_dir=Directory.fetch_user_main_directory(username=meta_data.get("username"), db=self.db_connection),
+            main_dir=Directory.fetch_user_main_directory(username=username, db=self.db_connection),
             path=meta_data.get("path"))
+
+        if requested_dir is None:
+            self.session.transfer_data(INVALID_PATH)
+            self.session.close()
+            return
+
+        if requested_dir.get_user_permission(username) not in [Permission.WRITE_ONLY, Permission.READ_WRITE]:
+            self.session.transfer_data(NO_PERMISSION)
+            self.session.close()
+            return
 
         if f"{meta_data.get('title')}.{meta_data.get('extension')}" in [f"{x.title}.{x.extension}" for x in
                                                                         requested_dir.files]:
