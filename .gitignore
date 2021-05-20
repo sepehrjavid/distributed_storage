@@ -2,3 +2,5 @@
 venv/
 .DS_Store
 meta_data.db
+__pycache__
+*/__pycache__
