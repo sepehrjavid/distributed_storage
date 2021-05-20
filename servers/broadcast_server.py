@@ -112,7 +112,7 @@ class ClientThread(Thread):
             permission = Permission(db=self.db_connection, directory_id=main_directory.id, user_id=user.id,
                                     perm=Permission.READ_WRITE)
             permission.save()
-            self.storage.controller.infrom_modification(NEW_USER.format(username=username, password=password))
+            self.storage.controller.inform_modification(NEW_USER.format(username=username, password=password))
             self.session.transfer_data(ACCEPT)
         else:
             self.session.transfer_data(DUPLICATE_ACCOUNT)
