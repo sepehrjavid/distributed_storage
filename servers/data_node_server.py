@@ -1,9 +1,6 @@
 from meta_data.database import MetaDatabase
-from meta_data.models.chunk import Chunk
-from meta_data.models.directory import Directory
-from meta_data.models.user import User
-from valid_messages import (CREATE_CHUNK, DELETE_CHUNK, INVALID_METADATA, MESSAGE_SEPARATOR, OUT_OF_SPACE,
-                            ACCEPT, DUPLICATE_FILE_FOR_USER)
+from valid_messages import (CREATE_CHUNK, INVALID_METADATA, MESSAGE_SEPARATOR, OUT_OF_SPACE,
+                            ACCEPT)
 from session.sessions import EncryptedSession, FileSession
 from singleton.singleton import Singleton
 from threading import Thread, Lock
@@ -77,8 +74,6 @@ class ClientThread(Thread):
         command = self.session.receive_data()
         if command.split(MESSAGE_SEPARATOR)[0] == CREATE_CHUNK.split(MESSAGE_SEPARATOR)[0]:
             pass
-        elif command.split(MESSAGE_SEPARATOR)[0] == DELETE_CHUNK.split(MESSAGE_SEPARATOR)[0]:
-            pass
 
     def create_chunk(self, message):
         try:
@@ -88,8 +83,6 @@ class ClientThread(Thread):
             self.session.close()
             return
 
-
-
         try:
             self.storage.update_byte_size(-int(meta_data.get("chunk_size")))
         except NotEnoughSpace:
@@ -97,7 +90,7 @@ class ClientThread(Thread):
             self.session.close()
             return
 
-        session.transfer_data(ACCEPT)
+        self.session.transfer_data(ACCEPT)
 
         if "." in meta_data.get("title") and meta_data.get("title").split(".")[-1] != '':
             destination_file_path = self.storage.get_new_file_path(
@@ -106,7 +99,7 @@ class ClientThread(Thread):
             destination_file_path = self.storage.get_new_file_path()
 
         file_session = FileSession()
-        file_session.receive_file(destination_file_path, session=session,
+        file_session.receive_file(destination_file_path, session=self.session,
                                   replication_list=self.storage.get_replication_data_nodes(
                                       int(meta_data.get("chunk_size"))))
 
