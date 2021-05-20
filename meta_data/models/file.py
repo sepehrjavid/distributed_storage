@@ -1,5 +1,4 @@
 from meta_data.database import MetaDatabase
-from meta_data.models.directory import Directory
 
 
 class File:
@@ -34,6 +33,7 @@ class File:
 
     @property
     def directory(self):
+        from meta_data.models.directory import Directory
         return Directory.fetch_by_id(self.directory_id, self.db)
 
     @staticmethod

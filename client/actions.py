@@ -69,7 +69,7 @@ class ClientActions:
             print(response)
             session.close()
 
-    def send_file(self, file_path):
+    def ask_for_service(self, message):
         broadcast_address = ipaddress.ip_network(self.configuration[self.DATA_NODE_NETWORK_ADDRESS]).broadcast_address
         transmitter = SimpleTransmitter(str(broadcast_address), BroadcastServer.BROADCAST_SERVER_PORT_NUMBER)
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -77,13 +77,18 @@ class ClientActions:
         server_socket.listen(5)
         server_socket.settimeout(self.SOCKET_ACCEPT_TIMEOUT)
 
-        transmitter.transmit(CREATE_FILE.format(total_size=os.path.getsize(file_path)))
+        transmitter.transmit(message)
         while True:
             try:
                 client_socket, addr = server_socket.accept()
                 break
             except socket.timeout:
-                transmitter.transmit(CREATE_FILE.format(total_size=os.path.getsize(file_path)))
+                transmitter.transmit(message)
+
+        return client_socket
+
+    def send_file(self, file_path):
+        client_socket = self.ask_for_service(message=CREATE_FILE.format(total_size=os.path.getsize(file_path)))
 
         session = EncryptedSession(input_socket=client_socket, is_server=True)
         response = session.receive_data()
@@ -97,6 +102,8 @@ class ClientActions:
             return
 
         session.close()
+        print(chunk_instructions)
+        return
 
         """
         chunk instructions' structure is as followed:
