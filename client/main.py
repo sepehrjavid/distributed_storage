@@ -32,7 +32,7 @@ class Main:
             command = input("Choose action:\n1.send file\n2.delete file\n3.Exit\n")
             if command == self.SEND_FILE_COMMAND:
                 file_path = input("Enter the desired filepath:\n")
-                self.client_actions.send_file(file_path)
+                self.client_actions.send_file(file_path, "main")
             elif command == self.DELETE_FILE_COMMAND:
                 pass
             elif command == self.EXIT_COMMAND:

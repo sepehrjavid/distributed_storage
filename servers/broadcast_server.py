@@ -173,7 +173,7 @@ class ClientThread(Thread):
                         sequence_num=len(data_nodes))
             file.save()
             Permission(db=self.db_connection, perm=Permission.READ_WRITE, file_id=file.id, user_id=user.id).save()
-            self.storage.controller.infrom_modification(NEW_FILE.format(title=meta_data.get("title"),
+            self.storage.controller.inform_modification(NEW_FILE.format(title=meta_data.get("title"),
                                                                         extension=meta_data.get("extension"),
                                                                         path=meta_data.get("path"),
                                                                         sequence_num=len(data_nodes),
