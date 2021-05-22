@@ -39,16 +39,16 @@ class Storage(metaclass=Singleton):
         while bytes_assigned < file_size:
             data_node = all_nodes[i % len(all_nodes)]
             if (file_size - bytes_assigned) >= self.CHUNK_SIZE and data_node.available_byte_size >= self.CHUNK_SIZE:
-                assigned_nodes.append((self.CHUNK_SIZE, data_node))
+                assigned_nodes.append((self.CHUNK_SIZE, data_node.ip_address))
                 bytes_assigned += self.CHUNK_SIZE
                 data_node.available_byte_size -= self.CHUNK_SIZE
             elif (file_size - bytes_assigned) < self.CHUNK_SIZE and data_node.available_byte_size >= (
                     file_size - bytes_assigned):
-                assigned_nodes.append((file_size - bytes_assigned, data_node))
+                assigned_nodes.append((file_size - bytes_assigned, data_node.ip_address))
                 bytes_assigned += (file_size - bytes_assigned)
                 data_node.available_byte_size -= (file_size - bytes_assigned)
             else:
-                assigned_nodes.append((data_node.available_byte_size, data_node))
+                assigned_nodes.append((data_node.available_byte_size, data_node.ip_address))
                 bytes_assigned += data_node.available_byte_size
                 data_node.available_byte_size = 0
             i += 1

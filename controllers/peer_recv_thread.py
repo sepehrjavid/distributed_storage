@@ -68,6 +68,7 @@ class PeerRecvThread(Thread):
 
     def create_file(self, message):
         meta_data = dict(parse.parse(NEW_FILE, message).named)
+        print(meta_data)
         user = User.fetch_by_username(username=meta_data.get("username"), db=self.db)
         requested_dir = Directory.find_path_directory(
             main_dir=Directory.fetch_user_main_directory(username=user.username, db=self.db),

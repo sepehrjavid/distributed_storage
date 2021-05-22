@@ -41,6 +41,3 @@ class Chunk:
     @property
     def data_node(self):
         return DataNode.fetch_by_id(self.data_node_id, self.db)
-
-    def __del__(self):
-        self.db.close()

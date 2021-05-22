@@ -58,6 +58,3 @@ class File:
             )
 
         return files
-
-    def __del__(self):
-        self.db.close()

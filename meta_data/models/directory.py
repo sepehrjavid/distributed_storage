@@ -101,6 +101,3 @@ class Directory:
             parent = child[0]
 
         return parent
-
-    def __del__(self):
-        self.db.close()

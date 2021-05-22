@@ -66,6 +66,3 @@ class DataNode:
         data_node = sql_result[0]
         return DataNode(db=db, id=data_node[0], ip_address=data_node[1], rack_number=data_node[2],
                         available_byte_size=data_node[3], last_seen=float(data_node[4]))
-
-    def close_db_connection(self):
-        self.db.close()
