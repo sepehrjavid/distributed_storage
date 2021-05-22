@@ -4,7 +4,7 @@ from meta_data.models.directory import Directory
 from meta_data.models.file import File
 from meta_data.models.permission import Permission
 from valid_messages import (CREATE_CHUNK, INVALID_METADATA, MESSAGE_SEPARATOR, OUT_OF_SPACE,
-                            ACCEPT, REJECT, NEW_CHUNK, NO_PERMISSION)
+                            ACCEPT, REJECT, NEW_CHUNK, NO_PERMISSION, DUPLICATE_CHUNK_FOR_FILE)
 from session.sessions import EncryptedSession, FileSession
 from singleton.singleton import Singleton
 from threading import Thread, Lock
@@ -113,6 +113,11 @@ class ClientThread(Thread):
             self.session.transfer_data(REJECT)
             self.session.close()
 
+        if Chunk.fetch_by_file_id_data_node_id_sequence(file_id=file.id, data_node_id=self.storage.current_data_node.id,
+                                                        sequence=meta_data.get("sequence")) is not None:
+            self.session.transfer_data(DUPLICATE_CHUNK_FOR_FILE)
+            self.session.close()
+
         self.session.transfer_data(ACCEPT)
 
         destination_file_path = self.storage.get_new_file_path()
@@ -133,4 +138,6 @@ class ClientThread(Thread):
                              path=meta_data.get("path"),
                              title=meta_data.get("title"),
                              extension=meta_data.get("extension"),
-                             username=username))
+                             username=username,
+                             destination_file_path=destination_file_path
+                             ))

@@ -36,6 +36,11 @@ class File:
         from meta_data.models.directory import Directory
         return Directory.fetch_by_id(self.directory_id, self.db)
 
+    @property
+    def chunks(self):
+        from meta_data.models.chunk import Chunk
+        return Chunk.fetch_by_file_id(file_id=self.id, db=self.db)
+
     @staticmethod
     def fetch_by_id(id, db: MetaDatabase):
         result = db.fetch("SELECT * FROM file WHERE id=?;", id)[0]

@@ -30,10 +30,6 @@ class Chunk:
     def delete(self):
         self.db.execute("DELETE FROM chunk WHERE id = ?;", self.id)
 
-    @staticmethod
-    def fetch_by_user_filename_directory_name(username, filename, directory_path):
-        pass
-
     @property
     def file(self):
         return File.fetch_by_id(self.file_id, self.db)
@@ -41,3 +37,31 @@ class Chunk:
     @property
     def data_node(self):
         return DataNode.fetch_by_id(self.data_node_id, self.db)
+
+    @staticmethod
+    def fetch_by_file_id(file_id, db: MetaDatabase):
+        result = db.fetch("SELECT * FROM chunk WHERE file_id=?;", file_id)
+
+        if len(result) == 0:
+            return None
+
+        chunks = []
+        for data in result:
+            chunks.append(
+                Chunk(db=db, id=data[0], sequence=data[1], local_path=data[2], chunk_size=data[3], data_node_id=data[4],
+                      file_id=data[5])
+            )
+
+        return chunks
+
+    @staticmethod
+    def fetch_by_file_id_data_node_id_sequence(file_id, data_node_id, sequence, db: MetaDatabase):
+        result = db.fetch("SELECT * FROM chunk WHERE file_id=? AND data_node_id=? AND sequence=?;", file_id,
+                          data_node_id, sequence)
+
+        if len(result) == 0:
+            return None
+
+        data = result[0]
+        return Chunk(db=db, id=data[0], sequence=data[1], local_path=data[2], chunk_size=data[3], data_node_id=data[4],
+                     file_id=data[5])

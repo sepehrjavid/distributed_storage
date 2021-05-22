@@ -4,6 +4,7 @@ from time import monotonic
 import parse
 
 from meta_data.database import MetaDatabase
+from meta_data.models.chunk import Chunk
 from meta_data.models.data_node import DataNode
 from meta_data.models.directory import Directory
 from meta_data.models.file import File
@@ -11,7 +12,7 @@ from meta_data.models.permission import Permission
 from meta_data.models.user import User
 from valid_messages import (CONFIRM_HANDSHAKE, STOP_FRIENDSHIP, RESPOND_TO_INTRODUCTION, ACCEPT, INTRODUCE_PEER,
                             MESSAGE_SEPARATOR, SEND_DB, UPDATE_DATA_NODE, UNBLOCK_QUEUEING, START_CLIENT_SERVER,
-                            NEW_USER, NEW_FILE)
+                            NEW_USER, NEW_FILE, NEW_CHUNK)
 from session.exceptions import PeerTimeOutException
 from session.sessions import SimpleSession, FileSession, EncryptedSession
 
@@ -45,9 +46,27 @@ class PeerRecvThread(Thread):
             self.create_account(message)
         elif command == NEW_FILE.split(MESSAGE_SEPARATOR)[0]:
             self.create_file(message)
+        elif command == NEW_CHUNK.split(MESSAGE_SEPARATOR)[0]:
+            self.create_chunk(message)
         elif message == STOP_FRIENDSHIP:
             self.session.close()
             self.continues = False
+
+    def create_chunk(self, message):
+        meta_data = dict(parse.parse(NEW_CHUNK, message).named)
+        requested_dir = Directory.find_path_directory(
+            main_dir=Directory.fetch_user_main_directory(username=meta_data.get("username"), db=self.db),
+            path=meta_data.get("path"))
+        file = File.fetch_by_dir_title_extension(dir_id=requested_dir.id, title=meta_data.get("title"),
+                                                 extension=meta_data.get("extension"), db=self.db)
+        data_node = DataNode.fetch_by_ip(meta_data.get("ip_address"))
+
+        if Chunk.fetch_by_file_id_data_node_id_sequence(file_id=file.id, data_node_id=data_node.id,
+                                                        sequence=meta_data.get("sequence")) is None:
+            self.controller.inform_next_node(message)
+            Chunk(db=self.db, sequence=meta_data.get("sequence"), local_path=meta_data.get("destination_file_path"),
+                  chunk_size=meta_data.get("chunk_size"), data_node_id=data_node.id,
+                  file_id=file.id).save()
 
     def create_account(self, message):
         meta_data = dict(parse.parse(NEW_USER, message).named)
@@ -57,6 +76,7 @@ class PeerRecvThread(Thread):
         user = User.fetch_by_username(username=username, db=self.db)
 
         if user is None:
+            self.controller.inform_next_node(message)
             user = User(db=self.db, username=username, password=password)
             user.save()
             main_directory = Directory(db=self.db, title=Directory.MAIN_DIR_NAME, parent_directory_id=None)
@@ -64,19 +84,21 @@ class PeerRecvThread(Thread):
             permission = Permission(db=self.db, directory_id=main_directory.id, user_id=user.id,
                                     perm=Permission.READ_WRITE)
             permission.save()
-            self.controller.inform_next_node(message)
 
     def create_file(self, message):
         meta_data = dict(parse.parse(NEW_FILE, message).named)
-        print(meta_data)
         user = User.fetch_by_username(username=meta_data.get("username"), db=self.db)
         requested_dir = Directory.find_path_directory(
             main_dir=Directory.fetch_user_main_directory(username=user.username, db=self.db),
             path=meta_data.get("path"))
-        file = File(db=self.db, title=meta_data.get("title"), extension=meta_data.get("extension"),
-                    sequence_num=meta_data.get("sequence_num"), directory_id=requested_dir.id, is_complete=False)
-        file.save()
-        Permission(db=self.db, perm=Permission.READ_WRITE, file_id=file.id, user_id=user.id).save()
+
+        if File.fetch_by_dir_title_extension(dir_id=requested_dir.id, extension=meta_data.get("extension"),
+                                             title=meta_data.get("title")) is None:
+            self.controller.inform_next_node(message)
+            file = File(db=self.db, title=meta_data.get("title"), extension=meta_data.get("extension"),
+                        sequence_num=meta_data.get("sequence_num"), directory_id=requested_dir.id, is_complete=False)
+            file.save()
+            Permission(db=self.db, perm=Permission.READ_WRITE, file_id=file.id, user_id=user.id).save()
 
     def receive_db(self):
         file_session = FileSession()
