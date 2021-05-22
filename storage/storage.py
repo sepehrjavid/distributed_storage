@@ -1,5 +1,3 @@
-from multiprocessing import Process
-
 from meta_data.database import MetaDatabase
 from meta_data.models.data_node import DataNode
 from meta_data.models.chunk import Chunk
@@ -8,6 +6,7 @@ import uuid
 
 from singleton.singleton import Singleton
 from storage.exceptions import InvalidFilePath, ChunkNotFound, DataNodeNotSaved
+from valid_messages import UPDATE_AVAILABLE_SIZE
 
 
 class Storage(metaclass=Singleton):
@@ -55,16 +54,10 @@ class Storage(metaclass=Singleton):
 
         return assigned_nodes
 
-    def get_new_file_path(self, extension=None):
-        if extension is None:
-            filepath = self.storage_path + str(uuid.uuid4())
-        else:
-            filepath = self.storage_path + str(uuid.uuid4()) + "." + extension
+    def get_new_file_path(self):
+        filepath = self.storage_path + str(uuid.uuid4())
         while os.path.isfile(filepath):
-            if extension is None:
-                filepath = self.storage_path + str(uuid.uuid4())
-            else:
-                filepath = self.storage_path + str(uuid.uuid4()) + "." + extension
+            filepath = self.storage_path + str(uuid.uuid4())
 
         return filepath
 
@@ -80,7 +73,9 @@ class Storage(metaclass=Singleton):
     def update_byte_size(self, byte_size):
         self.current_data_node.available_byte_size += byte_size
         self.current_data_node.save()
-        # TODO inform the rest of the nodes
+        self.controller.inform_modification(
+            UPDATE_AVAILABLE_SIZE.format(new_size=self.current_data_node.available_byte_size,
+                                         ip_address=self.current_data_node.ip_address))
 
     def add_chunk(self, **kwargs):
         if kwargs.get("local_path") is not None and self.is_valid_path(kwargs.get("local_path")):

@@ -1,4 +1,3 @@
-import hashlib
 import ntpath
 import pickle
 import socket
@@ -9,7 +8,6 @@ from client.exceptions import InvalidClientActionConfigFile
 import ipaddress
 import os
 
-from meta_data.models.data_node import DataNode
 from servers.broadcast_server import BroadcastServer
 from servers.data_node_server import DataNodeServer
 from valid_messages import CREATE_FILE, CREATE_CHUNK, ACCEPT, OUT_OF_SPACE, LOGIN, CREDENTIALS, CREATE_ACCOUNT
@@ -56,11 +54,10 @@ class ClientActions:
             if field not in keys:
                 raise InvalidClientActionConfigFile(field)
 
-    def __send_chunk(self, data_node: DataNode, file_path, sequence, chunk_size):
-        session = EncryptedSession(ip_address=data_node.ip_address, port_number=DataNodeServer.DATA_NODE_PORT_NUMBER)
-        permission_hash = hashlib.md5(self.username.encode()).hexdigest()
-        session.transfer_data(CREATE_CHUNK.format(title=ntpath.basename(file_path), sequence=sequence,
-                                                  chunk_size=chunk_size, permission=permission_hash))
+    def __send_chunk(self, ip_address, file_path, sequence, chunk_size, logical_path, filename, extension):
+        session = EncryptedSession(ip_address=ip_address, port_number=DataNodeServer.DATA_NODE_PORT_NUMBER)
+        session.transfer_data(CREATE_CHUNK.format(path=logical_path, title=filename, sequence=sequence,
+                                                  chunk_size=chunk_size, username=self.username, extension=extension))
         response = session.receive_data()
         if response == ACCEPT:
             file_session = FileSession()
@@ -142,11 +139,10 @@ class ClientActions:
 
         session.close()
         print(chunk_instructions)
-        return
 
         """
         chunk instructions' structure is as followed:
-        chunk_instructions = [(size, data_node), (size, data_node)]
+        chunk_instructions = [(size, ip_address), (size, ip_address)]
         """
 
         chunk_threads = []
@@ -154,7 +150,8 @@ class ClientActions:
 
         for i in range(len(chunk_instructions)):
             chunk_threads.append(Thread(target=self.__send_chunk,
-                                        args=[chunk_instructions[i][1], file_path, i + 1, chunk_instructions[i][0]]))
+                                        args=[chunk_instructions[i][1], file_path, i + 1, chunk_instructions[i][0],
+                                              logical_path, filename, extension]))
             chunk_threads[-1].start()
 
         for thread in chunk_threads:

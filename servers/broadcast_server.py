@@ -155,8 +155,8 @@ class ClientThread(Thread):
             self.session.close()
             return
 
-        if f"{meta_data.get('title')}.{meta_data.get('extension')}" in [f"{x.title}.{x.extension}" for x in
-                                                                        requested_dir.files]:
+        if File.fetch_by_dir_title_extension(dir_id=requested_dir.id, title=meta_data.get("title"),
+                                             extension=meta_data.get("extension"), db=self.db_connection) is not None:
             self.session.transfer_data(DUPLICATE_FILE_FOR_USER)
             self.session.close()
             return

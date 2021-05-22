@@ -1,6 +1,10 @@
 from meta_data.database import MetaDatabase
+from meta_data.models.chunk import Chunk
+from meta_data.models.directory import Directory
+from meta_data.models.file import File
+from meta_data.models.permission import Permission
 from valid_messages import (CREATE_CHUNK, INVALID_METADATA, MESSAGE_SEPARATOR, OUT_OF_SPACE,
-                            ACCEPT)
+                            ACCEPT, REJECT, NEW_CHUNK, NO_PERMISSION)
 from session.sessions import EncryptedSession, FileSession
 from singleton.singleton import Singleton
 from threading import Thread, Lock
@@ -71,9 +75,11 @@ class ClientThread(Thread):
     def run(self):
         self.db = MetaDatabase()
         self.session = EncryptedSession(input_socket=self.client_data.get("socket"), is_server=True)
-        command = self.session.receive_data()
-        if command.split(MESSAGE_SEPARATOR)[0] == CREATE_CHUNK.split(MESSAGE_SEPARATOR)[0]:
-            pass
+        message = self.session.receive_data()
+        command = message.split(MESSAGE_SEPARATOR)[0]
+
+        if command == CREATE_CHUNK.split(MESSAGE_SEPARATOR)[0]:
+            self.create_chunk(message)
 
     def create_chunk(self, message):
         try:
@@ -90,19 +96,41 @@ class ClientThread(Thread):
             self.session.close()
             return
 
+        username = meta_data.get("username")
+
+        requested_dir = Directory.find_path_directory(
+            main_dir=Directory.fetch_user_main_directory(username=username, db=self.db),
+            path=meta_data.get("path"))
+
+        if requested_dir.get_user_permission(username) not in [Permission.WRITE_ONLY, Permission.READ_WRITE]:
+            self.session.transfer_data(NO_PERMISSION)
+            self.session.close()
+            return
+
+        file = File.fetch_by_dir_title_extension(dir_id=requested_dir.id, title=meta_data.get("title"),
+                                                 extension=meta_data.get("extension"), db=self.db)
+        if file is None:
+            self.session.transfer_data(REJECT)
+            self.session.close()
+
         self.session.transfer_data(ACCEPT)
 
-        if "." in meta_data.get("title") and meta_data.get("title").split(".")[-1] != '':
-            destination_file_path = self.storage.get_new_file_path(
-                extension=meta_data.get("title").split(".")[-1])
-        else:
-            destination_file_path = self.storage.get_new_file_path()
+        destination_file_path = self.storage.get_new_file_path()
 
         file_session = FileSession()
-        file_session.receive_file(destination_file_path, session=self.session,
-                                  replication_list=self.storage.get_replication_data_nodes(
-                                      int(meta_data.get("chunk_size"))))
+        file_session.receive_file(destination_file_path, session=self.session)
 
-        self.storage.add_chunk(sequence=meta_data.get("sequence"), title=meta_data.get("title"),
-                               permission=meta_data.get("permission"), local_path=destination_file_path,
-                               chunk_size=meta_data.get("chunk_size"))
+        chunk = Chunk(db=self.db, sequence=meta_data.get("sequence"), local_path=destination_file_path,
+                      chunk_size=meta_data.get("chunk_size"), data_node_id=self.storage.current_data_node.id,
+                      file_id=file.id)
+        chunk.save()
+        self.session.close()
+
+        self.storage.controller.inform_modification(
+            NEW_CHUNK.format(ip_address=self.storage.current_data_node.ip_address,
+                             sequence=meta_data.get("sequence"),
+                             chunk_size=meta_data.get("chunk_size"),
+                             path=meta_data.get("path"),
+                             title=meta_data.get("title"),
+                             extension=meta_data.get("extension"),
+                             username=username))
