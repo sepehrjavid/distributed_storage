@@ -114,7 +114,7 @@ class ClientThread(Thread):
             self.session.close()
 
         if Chunk.fetch_by_file_id_data_node_id_sequence(file_id=file.id, data_node_id=self.storage.current_data_node.id,
-                                                        sequence=meta_data.get("sequence")) is not None:
+                                                        sequence=meta_data.get("sequence"), db=self.db) is not None:
             self.session.transfer_data(DUPLICATE_CHUNK_FOR_FILE)
             self.session.close()
 

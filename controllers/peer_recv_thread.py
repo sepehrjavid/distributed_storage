@@ -93,7 +93,7 @@ class PeerRecvThread(Thread):
             path=meta_data.get("path"))
 
         if File.fetch_by_dir_title_extension(dir_id=requested_dir.id, extension=meta_data.get("extension"),
-                                             title=meta_data.get("title")) is None:
+                                             title=meta_data.get("title"), db=self.db) is None:
             self.controller.inform_next_node(message)
             file = File(db=self.db, title=meta_data.get("title"), extension=meta_data.get("extension"),
                         sequence_num=meta_data.get("sequence_num"), directory_id=requested_dir.id, is_complete=False)
