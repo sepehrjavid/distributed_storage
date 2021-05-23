@@ -1,16 +1,16 @@
 from meta_data.database import MetaDatabase
 from meta_data.models.data_node import DataNode
-from meta_data.models.chunk import Chunk
 import os
 import uuid
 
 from singleton.singleton import Singleton
-from storage.exceptions import InvalidFilePath, ChunkNotFound, DataNodeNotSaved, NotEnoughSpace
+from storage.exceptions import DataNodeNotSaved, NotEnoughSpace
 from valid_messages import UPDATE_AVAILABLE_SIZE
 
 
 class Storage(metaclass=Singleton):
-    CHUNK_SIZE = 64 * (10 ** 6)
+    # CHUNK_SIZE = 64 * (10 ** 6)
+    CHUNK_SIZE = 100000
     REPLICATION_FACTOR = 3
 
     def __init__(self, storage_path, current_data_node, controller, *args, **kwargs):
@@ -61,15 +61,6 @@ class Storage(metaclass=Singleton):
 
         return filepath
 
-    def remove_chunk(self, title, permission):
-        chunk = Chunk.fetch_by_title_and_permission(title, permission)
-        if chunk is None:
-            raise ChunkNotFound
-
-        if self.is_valid_path(chunk.local_path):
-            os.remove(chunk.local_path)
-        chunk.delete()
-
     def update_byte_size(self, byte_size, db: MetaDatabase):
         self.current_data_node.db = db
         self.current_data_node.available_byte_size += byte_size
@@ -87,7 +78,6 @@ class Storage(metaclass=Singleton):
             os.remove(path)
 
     def get_replication_data_nodes(self, chunk_size):
-        return None
         all_data_nodes = DataNode.fetch_all()
         other_data_nodes = list(filter(lambda x: x.id != self.current_data_node.id, all_data_nodes))
         racks = {}

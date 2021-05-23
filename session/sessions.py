@@ -131,17 +131,19 @@ class FileSession:
         self.source_ip_address = kwargs.get("source_ip_address")
         self.destination_ip_address = kwargs.get("destination_ip_address")
 
-    def transfer_file(self, source_file_path, session=None):
-        session.transfer_data(str(os.path.getsize(source_file_path)))
+    def transfer_file(self, source_file_path, session=None, offset=0, size=None):
+        if size is None:
+            size = os.path.getsize(source_file_path)
+
+        session.transfer_data(str(size))
 
         with open(source_file_path, "rb") as file:
-            while True:
+            file.seek(offset)
+            bytes_read = 0
+            while bytes_read < size:
                 data = file.read(EncryptedSession.MDU)
-
-                if len(data) == 0:
-                    break
-
                 session.transfer_data(data, encode=False)
+                bytes_read += len(data)
 
     def receive_file(self, dest_path, session, replication_list=None):
         file_size = int(session.receive_data())

@@ -54,14 +54,14 @@ class ClientActions:
             if field not in keys:
                 raise InvalidClientActionConfigFile(field)
 
-    def __send_chunk(self, ip_address, file_path, sequence, chunk_size, logical_path, filename, extension):
+    def __send_chunk(self, ip_address, file_path, sequence, chunk_size, logical_path, filename, extension, offset):
         session = EncryptedSession(ip_address=ip_address, port_number=DataNodeServer.DATA_NODE_PORT_NUMBER)
         session.transfer_data(CREATE_CHUNK.format(path=logical_path, title=filename, sequence=sequence,
                                                   chunk_size=chunk_size, username=self.username, extension=extension))
         response = session.receive_data()
         if response == ACCEPT:
             file_session = FileSession()
-            file_session.transfer_file(file_path, session=session)
+            file_session.transfer_file(file_path, session=session, offset=offset, size=chunk_size)
         else:
             print(response)
             session.close()
@@ -154,7 +154,7 @@ class ClientActions:
         for i in range(len(chunk_instructions)):
             chunk_threads.append(Thread(target=self.__send_chunk,
                                         args=[chunk_instructions[i][1], file_path, i + 1, chunk_instructions[i][0],
-                                              logical_path, filename, extension]))
+                                              logical_path, filename, extension, offset]))
             offset += chunk_instructions[i][0]
             chunk_threads[-1].start()
 
