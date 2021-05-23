@@ -59,7 +59,7 @@ class PeerRecvThread(Thread):
             path=meta_data.get("path"))
         file = File.fetch_by_dir_title_extension(dir_id=requested_dir.id, title=meta_data.get("title"),
                                                  extension=meta_data.get("extension"), db=self.db)
-        data_node = DataNode.fetch_by_ip(meta_data.get("ip_address"))
+        data_node = DataNode.fetch_by_ip(meta_data.get("ip_address"), db=self.db)
 
         if Chunk.fetch_by_file_id_data_node_id_sequence(file_id=file.id, data_node_id=data_node.id,
                                                         sequence=meta_data.get("sequence"), db=self.db) is None:
