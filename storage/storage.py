@@ -70,7 +70,8 @@ class Storage(metaclass=Singleton):
             os.remove(chunk.local_path)
         chunk.delete()
 
-    def update_byte_size(self, byte_size):
+    def update_byte_size(self, byte_size, db: MetaDatabase):
+        self.current_data_node.db = db
         self.current_data_node.available_byte_size += byte_size
 
         if self.current_data_node.available_byte_size < 0:

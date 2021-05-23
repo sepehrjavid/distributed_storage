@@ -90,7 +90,7 @@ class ClientThread(Thread):
             return
 
         try:
-            self.storage.update_byte_size(-int(meta_data.get("chunk_size")))
+            self.storage.update_byte_size(-int(meta_data.get("chunk_size")), self.db)
         except NotEnoughSpace:
             self.session.transfer_data(OUT_OF_SPACE)
             self.session.close()
