@@ -141,7 +141,10 @@ class FileSession:
             file.seek(offset)
             bytes_read = 0
             while bytes_read < size:
-                data = file.read(EncryptedSession.MDU)
+                if bytes_read + EncryptedSession.MDU <= size:
+                    data = file.read(EncryptedSession.MDU)
+                else:
+                    data = file.read(size - bytes_read)
                 session.transfer_data(data, encode=False)
                 bytes_read += len(data)
 
