@@ -4,7 +4,8 @@ from meta_data.models.directory import Directory
 from meta_data.models.file import File
 from meta_data.models.permission import Permission
 from valid_messages import (CREATE_CHUNK, INVALID_METADATA, MESSAGE_SEPARATOR, OUT_OF_SPACE,
-                            ACCEPT, REJECT, NEW_CHUNK, NO_PERMISSION, DUPLICATE_CHUNK_FOR_FILE)
+                            ACCEPT, REJECT, NEW_CHUNK, NO_PERMISSION, DUPLICATE_CHUNK_FOR_FILE, GET_CHUNK,
+                            CHUNK_NOT_FOUND)
 from session.sessions import EncryptedSession, FileSession
 from singleton.singleton import Singleton
 from threading import Thread, Lock
@@ -80,6 +81,41 @@ class ClientThread(Thread):
 
         if command == CREATE_CHUNK.split(MESSAGE_SEPARATOR)[0]:
             self.create_chunk(message)
+        elif command == GET_CHUNK.split(MESSAGE_SEPARATOR)[0]:
+            self.get_chunk(message)
+
+    def get_chunk(self, message):
+        meta_data = dict(parse.parse(GET_CHUNK, message).named)
+        username = meta_data.get("username")
+        logical_path = meta_data.get("path")
+        sequence = meta_data.get("sequence")
+        lst = logical_path.split("/")
+        dir_path = "/".join(lst[:-1])
+
+        if "." in lst[-1]:
+            file_name = lst[-1].split(".")[0]
+            extension = lst[-1].split(".")[1]
+        else:
+            file_name = lst[-1].split(".")[0]
+            extension = None
+
+        directory = Directory.find_path_directory(
+            main_dir=Directory.fetch_user_main_directory(username=username, db=self.db), path=logical_path)
+
+        file = list(filter(lambda x: x.title == file_name and x.extension == extension, directory.files()))[0]
+        requested_chunk = Chunk.fetch_by_file_id_data_node_id_sequence(file_id=file.id,
+                                                                       data_node_id=self.storage.current_data_node.id,
+                                                                       sequence=sequence, db=self.db)
+        if requested_chunk is None:
+            self.session.transfer_data(CHUNK_NOT_FOUND)
+            self.session.close()
+            return
+
+        self.session.transfer_data(ACCEPT)
+        self.session.transfer_data(requested_chunk.chunk_size)
+        file_session = FileSession()
+        file_session.transfer_file(requested_chunk.local_path, session=self.session)
+        self.session.close()
 
     def create_chunk(self, message):
         try:

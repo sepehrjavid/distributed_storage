@@ -18,6 +18,7 @@ NO_PERMISSION = "noperm"
 INVALID_PATH = "invld_path"
 FILE_DOES_NOT_EXIST = "ntexstfile"
 CORRUPTED_FILE = "crpted"
+CHUNK_NOT_FOUND = "chnk_notfnd"
 
 LOGIN = "lgin"
 CREDENTIALS = "cred-{username}-{password}"

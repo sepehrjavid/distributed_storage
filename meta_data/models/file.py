@@ -41,6 +41,11 @@ class File:
         from meta_data.models.chunk import Chunk
         return Chunk.fetch_by_file_id(file_id=self.id, db=self.db)
 
+    def get_user_permission(self, username):
+        result = self.db.fetch("""SELECT permission.perm FROM permission INNER JOIN file f ON 
+                                permission.file_id = f.id WHERE f.id=?;""", self.id)[0]
+        return result[0]
+
     @staticmethod
     def fetch_by_id(id, db: MetaDatabase):
         result = db.fetch("SELECT * FROM file WHERE id=?;", id)[0]

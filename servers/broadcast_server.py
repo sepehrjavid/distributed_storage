@@ -128,13 +128,20 @@ class ClientThread(Thread):
             self.session.close()
             return
 
-        chunks = possible_file[0].chunks
+        file = possible_file[0]
+
+        if file.get_user_permission(username) not in [Permission.READ_WRITE, Permission.READ_ONLY]:
+            self.session.transfer_data(NO_PERMISSION)
+            self.session.close()
+            return
+
+        chunks = file.chunks
         result = []
         for chunk in chunks:
             if chunks.sequence not in [x[0] for x in result]:
                 result.append((chunks.sequence, chunks.data_node.ip_address))
 
-        if len(result) != possible_file[0].sequence_num:
+        if len(result) != file.sequence_num:
             self.session.transfer_data(CORRUPTED_FILE)
             self.session.close()
             return
