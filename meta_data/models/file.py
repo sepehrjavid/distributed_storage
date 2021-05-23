@@ -48,7 +48,7 @@ class File:
         temp = True if result[3] == 1 else False
 
         return File(db=db, id=result[0], title=result[1], extension=result[2], is_complete=temp, directory_id=result[4],
-                    sequence_num=result[5])
+                    sequence_num=int(result[5]))
 
     @staticmethod
     def fetch_by_dir_id(dir_id, db: MetaDatabase):
@@ -59,7 +59,7 @@ class File:
             temp = True if data[3] == 1 else False
             files.append(
                 File(db=db, id=data[0], title=data[1], extension=data[2], is_complete=temp, directory_id=data[4],
-                     sequence_num=data[5])
+                     sequence_num=int(data[5]))
             )
 
         return files
@@ -75,4 +75,4 @@ class File:
         data = result[0]
         temp = True if data[3] == 1 else False
         return File(db=db, id=data[0], title=data[1], extension=data[2], is_complete=temp, directory_id=data[4],
-                    sequence_num=data[5])
+                    sequence_num=int(data[5]))

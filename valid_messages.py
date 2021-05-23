@@ -3,15 +3,21 @@ Client-Peer Messages
 """
 
 MESSAGE_SEPARATOR = "-"
+
 CREATE_FILE = "crf-{total_size}-{path}-{username}-{title}-{extension}"
 DELETE_FILE = "rmf-{title}-{permission}"
 CREATE_CHUNK = "crc-{sequence}-{chunk_size}-{username}-{path}-{title}-{extension}"
+GET_FILE = "getf-{path}-{username}"
+GET_CHUNK = "getc-{path}-{username}-{sequence}"
+
 OUT_OF_SPACE = "no_space"
 INVALID_METADATA = "meta_err"
 DUPLICATE_FILE_FOR_USER = "dup_fil"
 DUPLICATE_CHUNK_FOR_FILE = "dup-chnk"
 NO_PERMISSION = "noperm"
 INVALID_PATH = "invld_path"
+FILE_DOES_NOT_EXIST = "ntexstfile"
+CORRUPTED_FILE = "crpted"
 
 LOGIN = "lgin"
 CREDENTIALS = "cred-{username}-{password}"
@@ -38,8 +44,6 @@ NEW_FILE = "nwfl-{title}-{extension}-{username}-{path}-{sequence_num}"
 NEW_USER = "nwusr-{username}-{password}"
 UPDATE_AVAILABLE_SIZE = "size-{new_size}-{ip_address}"
 NEW_CHUNK = "nwchnk-{ip_address}-{sequence}-{chunk_size}-{path}-{title}-{extension}-{username}-{destination_file_path}"
-# TODO clean messages
-
 
 """
 General Messages

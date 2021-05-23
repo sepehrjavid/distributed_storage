@@ -13,7 +13,7 @@ from meta_data.models.permission import Permission
 from meta_data.models.user import User
 from valid_messages import (CREATE_FILE, MESSAGE_SEPARATOR, OUT_OF_SPACE, ACCEPT, DUPLICATE_FILE_FOR_USER,
                             NEW_FILE, NO_PERMISSION, INVALID_PATH, LOGIN, CREDENTIALS, USER_NOT_FOUND, AUTH_FAILED,
-                            CREATE_ACCOUNT, DUPLICATE_ACCOUNT, NEW_USER)
+                            CREATE_ACCOUNT, DUPLICATE_ACCOUNT, NEW_USER, GET_FILE, FILE_DOES_NOT_EXIST, CORRUPTED_FILE)
 from session.exceptions import PeerTimeOutException
 from session.sessions import EncryptedSession
 from singleton.singleton import Singleton
@@ -87,14 +87,60 @@ class ClientThread(Thread):
         except PeerTimeOutException:
             return
 
-        command = self.client_data.get("command")
+        message = self.client_data.get("command")
+        command = message.split(MESSAGE_SEPARATOR)[0]
 
-        if command.split(MESSAGE_SEPARATOR)[0] == CREATE_FILE.split(MESSAGE_SEPARATOR)[0]:
-            self.create_file(command)
-        elif command == LOGIN:
+        if command == CREATE_FILE.split(MESSAGE_SEPARATOR)[0]:
+            self.create_file(message)
+        elif message == LOGIN:
             self.login()
-        elif command == CREATE_ACCOUNT:
+        elif message == CREATE_ACCOUNT:
             self.create_account()
+        elif command == GET_FILE.split(MESSAGE_SEPARATOR)[0]:
+            self.get_file(message)
+
+    def get_file(self, message):
+        meta_data = dict(parse.parse(GET_FILE, message).named)
+        username = meta_data.get("username")
+        logical_path = meta_data.get("path")
+        lst = logical_path.split("/")
+        dir_path = "/".join(lst[:-1])
+
+        if "." in lst[-1]:
+            file_name = lst[-1].split(".")[0]
+            extension = lst[-1].split(".")[1]
+        else:
+            file_name = lst[-1].split(".")[0]
+            extension = None
+
+        directory = Directory.find_path_directory(
+            main_dir=Directory.fetch_user_main_directory(username=username, db=self.db_connection), path=logical_path)
+
+        if directory is None:
+            self.session.transfer_data(INVALID_PATH)
+            self.session.close()
+            return
+
+        files = directory.files()
+        possible_file = list(filter(lambda x: x.title == file_name and x.extension == extension, files))
+        if len(possible_file) == 0:
+            self.session.transfer_data(FILE_DOES_NOT_EXIST)
+            self.session.close()
+            return
+
+        chunks = possible_file[0].chunks
+        result = []
+        for chunk in chunks:
+            if chunks.sequence not in [x[0] for x in result]:
+                result.append((chunks.sequence, chunks.data_node.ip_address))
+
+        if len(result) != possible_file[0].sequence_num:
+            self.session.transfer_data(CORRUPTED_FILE)
+            self.session.close()
+            return
+
+        self.session.transfer_data(pickle.dumps(result), encode=False)
+        self.session.close()
 
     def create_account(self):
         credentials = self.session.receive_data()

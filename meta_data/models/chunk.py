@@ -48,8 +48,8 @@ class Chunk:
         chunks = []
         for data in result:
             chunks.append(
-                Chunk(db=db, id=data[0], sequence=data[1], local_path=data[2], chunk_size=data[3], data_node_id=data[4],
-                      file_id=data[5])
+                Chunk(db=db, id=data[0], sequence=int(data[1]), local_path=data[2], chunk_size=data[3],
+                      data_node_id=data[4], file_id=data[5])
             )
 
         return chunks
@@ -63,5 +63,5 @@ class Chunk:
             return None
 
         data = result[0]
-        return Chunk(db=db, id=data[0], sequence=data[1], local_path=data[2], chunk_size=data[3], data_node_id=data[4],
-                     file_id=data[5])
+        return Chunk(db=db, id=data[0], sequence=int(data[1]), local_path=data[2], chunk_size=data[3],
+                     data_node_id=data[4], file_id=data[5])
