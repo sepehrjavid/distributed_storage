@@ -8,10 +8,9 @@ class Main:
     DELETE_FILE_COMMAND = "2"
     EXIT_COMMAND = "3"
 
-    def __init__(self, username, ip_address):
-        self.username = username
+    def __init__(self, ip_address):
         self.ip_address = ip_address
-        self.client_actions = ClientActions(username, ip_address)
+        self.client_actions = ClientActions(ip_address)
 
     def run(self):
         while True:
@@ -40,5 +39,5 @@ class Main:
 
 
 if __name__ == "__main__":
-    program = Main("sep", "192.168.1.12")
+    program = Main("192.168.1.12")
     program.run()

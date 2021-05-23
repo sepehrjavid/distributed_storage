@@ -20,8 +20,8 @@ class ClientActions:
     MANDATORY_FIELDS = [DATA_NODE_NETWORK_ADDRESS]
     SOCKET_ACCEPT_TIMEOUT = 2
 
-    def __init__(self, username, ip_address):
-        self.username = username
+    def __init__(self, ip_address):
+        self.username = None
         self.configuration = None
         self.update_config_file()
         self.ip_address = ip_address
@@ -94,6 +94,7 @@ class ClientActions:
         response = session.receive_data()
 
         if response == ACCEPT:
+            self.username = username
             return True
         return False
 
@@ -107,6 +108,7 @@ class ClientActions:
         response = session.receive_data()
 
         if response == ACCEPT:
+            self.username = username
             return True
         return False
 
