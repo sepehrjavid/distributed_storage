@@ -12,7 +12,7 @@ from meta_data.models.permission import Permission
 from meta_data.models.user import User
 from valid_messages import (CONFIRM_HANDSHAKE, STOP_FRIENDSHIP, RESPOND_TO_INTRODUCTION, ACCEPT, INTRODUCE_PEER,
                             MESSAGE_SEPARATOR, SEND_DB, UPDATE_DATA_NODE, UNBLOCK_QUEUEING, START_CLIENT_SERVER,
-                            NEW_USER, NEW_FILE, NEW_CHUNK)
+                            NEW_USER, NEW_FILE, NEW_CHUNK, UPDATE_AVAILABLE_SIZE)
 from session.exceptions import PeerTimeOutException
 from session.sessions import SimpleSession, FileSession, EncryptedSession
 
@@ -48,9 +48,18 @@ class PeerRecvThread(Thread):
             self.create_file(message)
         elif command == NEW_CHUNK.split(MESSAGE_SEPARATOR)[0]:
             self.create_chunk(message)
+        elif command == UPDATE_AVAILABLE_SIZE.split(MESSAGE_SEPARATOR)[0]:
+            self.update_data_node_byte_size(message)
         elif message == STOP_FRIENDSHIP:
             self.session.close()
             self.continues = False
+
+    def update_data_node_byte_size(self, message):
+        meta_data = dict(parse.parse(UPDATE_AVAILABLE_SIZE, message).named)
+        data_node = DataNode.fetch_by_ip(meta_data.get("ip_address"), db=self.db)
+        if data_node.available_byte_size != meta_data.get("new_size"):
+            data_node.available_byte_size = meta_data.get("new_size")
+            data_node.save()
 
     def create_chunk(self, message):
         meta_data = dict(parse.parse(NEW_CHUNK, message).named)
@@ -110,11 +119,7 @@ class PeerRecvThread(Thread):
     def update_data_node(self, message):
         meta_data = dict(parse.parse(INTRODUCE_PEER, message).named)
         data_node = DataNode.fetch_by_ip(meta_data.get("ip_address"), self.db)
-        if data_node is not None:
-            data_node.rack_number = meta_data.get("rack_number")
-            data_node.available_byte_size = meta_data.get("available_byte_size")
-            data_node.save()
-        else:
+        if data_node is None:
             self.controller.inform_next_node(message)
             data_node = DataNode(db=self.db, ip_address=meta_data["ip_address"],
                                  rack_number=meta_data.get("rack_number"),
