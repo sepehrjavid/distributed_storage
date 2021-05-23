@@ -62,7 +62,7 @@ class PeerRecvThread(Thread):
         data_node = DataNode.fetch_by_ip(meta_data.get("ip_address"))
 
         if Chunk.fetch_by_file_id_data_node_id_sequence(file_id=file.id, data_node_id=data_node.id,
-                                                        sequence=meta_data.get("sequence")) is None:
+                                                        sequence=meta_data.get("sequence"), db=self.db) is None:
             self.controller.inform_next_node(message)
             Chunk(db=self.db, sequence=meta_data.get("sequence"), local_path=meta_data.get("destination_file_path"),
                   chunk_size=meta_data.get("chunk_size"), data_node_id=data_node.id,
