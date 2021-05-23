@@ -5,7 +5,7 @@ import os
 import uuid
 
 from singleton.singleton import Singleton
-from storage.exceptions import InvalidFilePath, ChunkNotFound, DataNodeNotSaved
+from storage.exceptions import InvalidFilePath, ChunkNotFound, DataNodeNotSaved, NotEnoughSpace
 from valid_messages import UPDATE_AVAILABLE_SIZE
 
 
@@ -72,18 +72,14 @@ class Storage(metaclass=Singleton):
 
     def update_byte_size(self, byte_size):
         self.current_data_node.available_byte_size += byte_size
+
+        if self.current_data_node.available_byte_size < 0:
+            raise NotEnoughSpace
+
         self.current_data_node.save()
         self.controller.inform_modification(
             UPDATE_AVAILABLE_SIZE.format(new_size=self.current_data_node.available_byte_size,
                                          ip_address=self.current_data_node.ip_address))
-
-    def add_chunk(self, **kwargs):
-        if kwargs.get("local_path") is not None and self.is_valid_path(kwargs.get("local_path")):
-            chunk = Chunk(**kwargs, data_node=self.current_data_node)
-            chunk.save()
-            # TODO inform the rest of the nodes
-        else:
-            raise InvalidFilePath
 
     def retract_saved_chunk(self, path):
         if self.is_valid_path(path):

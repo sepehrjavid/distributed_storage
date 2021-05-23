@@ -150,10 +150,12 @@ class ClientActions:
         chunk_threads = []
         print("Sending file...")
 
+        offset = 0
         for i in range(len(chunk_instructions)):
             chunk_threads.append(Thread(target=self.__send_chunk,
                                         args=[chunk_instructions[i][1], file_path, i + 1, chunk_instructions[i][0],
                                               logical_path, filename, extension]))
+            offset += chunk_instructions[i][0]
             chunk_threads[-1].start()
 
         for thread in chunk_threads:
