@@ -103,6 +103,11 @@ class ClientThread(Thread):
             main_dir=Directory.fetch_user_main_directory(username=username, db=self.db), path=logical_path)
 
         file = list(filter(lambda x: x.title == file_name and x.extension == extension, directory.files()))[0]
+        if file.get_user_permission(username) not in [Permission.READ_WRITE, Permission.READ_ONLY]:
+            self.session.transfer_data(NO_PERMISSION)
+            self.session.close()
+            return
+
         requested_chunk = Chunk.fetch_by_file_id_data_node_id_sequence(file_id=file.id,
                                                                        data_node_id=self.storage.current_data_node.id,
                                                                        sequence=sequence, db=self.db)
