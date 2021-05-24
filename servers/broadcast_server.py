@@ -114,7 +114,7 @@ class ClientThread(Thread):
             extension = None
 
         directory = Directory.find_path_directory(
-            main_dir=Directory.fetch_user_main_directory(username=username, db=self.db_connection), path=logical_path)
+            main_dir=Directory.fetch_user_main_directory(username=username, db=self.db_connection), path=dir_path)
 
         if directory is None:
             self.session.transfer_data(INVALID_PATH)
