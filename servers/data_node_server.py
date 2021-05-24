@@ -102,7 +102,7 @@ class ClientThread(Thread):
         directory = Directory.find_path_directory(
             main_dir=Directory.fetch_user_main_directory(username=username, db=self.db), path=dir_path)
 
-        file = list(filter(lambda x: x.title == file_name and x.extension == extension, directory.files()))[0]
+        file = list(filter(lambda x: x.title == file_name and x.extension == extension, directory.files))[0]
         if file.get_user_permission(username) not in [Permission.READ_WRITE, Permission.READ_ONLY]:
             self.session.transfer_data(NO_PERMISSION)
             self.session.close()
