@@ -208,7 +208,6 @@ class ClientActions:
         chunk_list = pickle.loads(response)
         chunk_list.sort(key=lambda x: x[0])
         print(chunk_list)
-        return
 
         """
                 chunk list's structure is as followed:
@@ -219,7 +218,7 @@ class ClientActions:
         threads = []
         file = open(save_to_path + filename, "w")
         for chunk in chunk_list:
-            threads.append(Thread(target=self.__receive_chunk, args=[chunk[0], chunk[1], file, logical_file_path]))
+            threads.append(Thread(target=self.__receive_chunk, args=[chunk[1], chunk[0], file, logical_file_path]))
             threads[-1].start()
 
         for thread in threads:
