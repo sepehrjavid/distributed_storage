@@ -138,8 +138,8 @@ class ClientThread(Thread):
         chunks = file.chunks
         result = []
         for chunk in chunks:
-            if chunks.sequence not in [x[0] for x in result]:
-                result.append((chunks.sequence, chunks.data_node.ip_address))
+            if chunk.sequence not in [x[0] for x in result]:
+                result.append((chunk.sequence, chunk.data_node.ip_address))
 
         if len(result) != file.sequence_num:
             self.session.transfer_data(CORRUPTED_FILE)
