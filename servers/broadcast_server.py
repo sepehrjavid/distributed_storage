@@ -121,7 +121,7 @@ class ClientThread(Thread):
             self.session.close()
             return
 
-        files = directory.files()
+        files = directory.files
         possible_file = list(filter(lambda x: x.title == file_name and x.extension == extension, files))
         if len(possible_file) == 0:
             self.session.transfer_data(FILE_DOES_NOT_EXIST)
