@@ -216,7 +216,7 @@ class ClientActions:
 
         self.received_seq = 1
         threads = []
-        file = open(save_to_path + filename, "w")
+        file = open(save_to_path + filename, "wb")
         for chunk in chunk_list:
             threads.append(Thread(target=self.__receive_chunk, args=[chunk[1], chunk[0], file, logical_file_path]))
             threads[-1].start()
