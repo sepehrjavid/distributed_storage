@@ -131,7 +131,7 @@ class FileSession:
         self.source_ip_address = kwargs.get("source_ip_address")
         self.destination_ip_address = kwargs.get("destination_ip_address")
 
-    def transfer_file(self, source_file_path, session=None, offset=0, size=None):
+    def transfer_file(self, source_file_path, session, offset=0, size=None):
         if size is None:
             size = os.path.getsize(source_file_path)
 
@@ -157,3 +157,14 @@ class FileSession:
                 data = session.receive_data(decode=False)
                 file.write(data)
                 received += len(data)
+
+    def receive_chunk(self, session):
+        chunk_size = int(session.receive_data())
+        received = 0
+        result = b''
+        while received < chunk_size:
+            data = session.receive_data(decode=False)
+            result += data
+            received += len(data)
+
+        return result

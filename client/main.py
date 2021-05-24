@@ -2,11 +2,14 @@ from client.actions import ClientActions
 
 
 class Main:
-    SEND_FILE_COMMAND = "1"
     LOGIN_COMMAND = "1"
     CREATE_ACCOUNT_COMMAND = "2"
+    LOGIN_EXIT_COMMAND = "3"
+
+    SEND_FILE_COMMAND = "1"
     DELETE_FILE_COMMAND = "2"
-    EXIT_COMMAND = "3"
+    RETRIEVE_FILE = "3"
+    EXIT_COMMAND = "4"
 
     def __init__(self, ip_address):
         self.ip_address = ip_address
@@ -16,7 +19,7 @@ class Main:
         while True:
             command = input("Choose action:\n1.Login\n2.Create account\n3.Exit\n")
 
-            if command == self.EXIT_COMMAND:
+            if command == self.LOGIN_EXIT_COMMAND:
                 return
             elif command == self.CREATE_ACCOUNT_COMMAND:
                 if self.client_actions.create_account():
@@ -28,10 +31,12 @@ class Main:
                 print("Authentication Failed!!")
 
         while True:
-            command = input("Choose action:\n1.send file\n2.delete file\n3.Exit\n")
+            command = input("Choose action:\n1.send file\n2.delete file\n3.Retrieve file\n4.Exit\n")
             if command == self.SEND_FILE_COMMAND:
                 file_path = input("Enter the desired filepath:\n")
                 self.client_actions.send_file(file_path, "main")
+            elif command == self.RETRIEVE_FILE:
+                self.client_actions.retrieve_file()
             elif command == self.DELETE_FILE_COMMAND:
                 pass
             elif command == self.EXIT_COMMAND:

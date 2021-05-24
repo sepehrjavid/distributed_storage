@@ -1,7 +1,7 @@
 import ntpath
 import pickle
 import socket
-from threading import Thread
+from threading import Thread, Condition
 
 from broadcast.transmitters import SimpleTransmitter
 from client.exceptions import InvalidClientActionConfigFile
@@ -10,7 +10,8 @@ import os
 
 from servers.broadcast_server import BroadcastServer
 from servers.data_node_server import DataNodeServer
-from valid_messages import CREATE_FILE, CREATE_CHUNK, ACCEPT, OUT_OF_SPACE, LOGIN, CREDENTIALS, CREATE_ACCOUNT
+from valid_messages import CREATE_FILE, CREATE_CHUNK, ACCEPT, OUT_OF_SPACE, LOGIN, CREDENTIALS, CREATE_ACCOUNT, \
+    GET_FILE, INVALID_PATH, FILE_DOES_NOT_EXIST, NO_PERMISSION, CORRUPTED_FILE, GET_CHUNK
 from session.sessions import EncryptedSession, FileSession
 
 
@@ -25,6 +26,8 @@ class ClientActions:
         self.configuration = None
         self.update_config_file()
         self.ip_address = ip_address
+        self.received_seq = 0
+        self.write_chunk_condition = Condition()
 
     def update_config_file(self):
         with open(self.CONFIG_FILE_PATH, "r") as config_file:
@@ -160,3 +163,64 @@ class ClientActions:
 
         for thread in chunk_threads:
             thread.join()
+
+    def __receive_chunk(self, ip_address, sequence, file, logical_path):
+        session = EncryptedSession(ip_address=ip_address, port_number=DataNodeServer.DATA_NODE_PORT_NUMBER)
+        session.transfer_data(GET_CHUNK.format(username=self.username, sequence=sequence, path=logical_path))
+        response = session.receive_data()
+
+        if response != ACCEPT:
+            print(f"{response} occurred when retrieving from {ip_address}")
+            return
+
+        file_session = FileSession()
+        data = file_session.receive_chunk(session)
+        session.close()
+
+        with self.write_chunk_condition:
+            while self.received_seq != sequence:
+                self.write_chunk_condition.wait()
+            file.write(data)
+            self.received_seq += 1
+            self.write_chunk_condition.notifyAll()
+
+    def retrieve_file(self):
+        logical_file_path = input("File path: ")
+        save_to_path = input("Save to path: ")
+        filename = logical_file_path.split("/")[-1]
+
+        client_socket = self.ask_for_service(GET_FILE.format(path=logical_file_path, username=self.username))
+        session = EncryptedSession(input_socket=client_socket, is_server=True)
+
+        response = session.receive_data(decode=False)
+        session.close()
+
+        if response == INVALID_PATH.encode() or response == FILE_DOES_NOT_EXIST.encode():
+            print("Invalid File Path")
+            return
+        elif response == NO_PERMISSION.encode():
+            print("Permission Denied")
+            return
+        elif response == CORRUPTED_FILE.encode():
+            print("The Requested File is Corrupted")
+            return
+
+        chunk_list = pickle.loads(response)
+        chunk_list.sort(key=lambda x: x[0])
+
+        """
+                chunk list's structure is as followed:
+                chunk_list = [(sequence, ip_address), (sequence, ip_address)]
+        """
+
+        self.received_seq = 1
+        threads = []
+        file = open(save_to_path + filename, "w")
+        for chunk in chunk_list:
+            threads.append(Thread(target=self.__receive_chunk, args=[chunk[0], chunk[1], file, logical_file_path]))
+            threads[-1].start()
+
+        for thread in threads:
+            thread.join()
+
+        file.close()

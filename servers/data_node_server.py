@@ -117,7 +117,6 @@ class ClientThread(Thread):
             return
 
         self.session.transfer_data(ACCEPT)
-        self.session.transfer_data(requested_chunk.chunk_size)
         file_session = FileSession()
         file_session.transfer_file(requested_chunk.local_path, session=self.session)
         self.session.close()
