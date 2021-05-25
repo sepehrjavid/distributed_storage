@@ -74,6 +74,7 @@ class ClientThread(Thread):
         self.storage = storage
         self.session = None
         self.db = None
+        self.ip_address = self.storage.current_data_node.ip_address
 
     def run(self):
         self.db = MetaDatabase()
@@ -181,5 +182,6 @@ class ClientThread(Thread):
                              path=meta_data.get("path"),
                              title=meta_data.get("title"),
                              extension=meta_data.get("extension"),
-                             destination_file_path=destination_file_path
+                             destination_file_path=destination_file_path,
+                             signature=self.ip_address
                              ))

@@ -78,6 +78,7 @@ class ClientThread(Thread):
         self.storage = storage
         self.db_connection = None
         self.session = None
+        self.ip_address = self.storage.current_data_node.ip_address
 
     def run(self):
         self.db_connection = MetaDatabase()
@@ -165,7 +166,8 @@ class ClientThread(Thread):
             permission = Permission(db=self.db_connection, directory_id=main_directory.id, user_id=user.id,
                                     perm=Permission.READ_WRITE)
             permission.save()
-            self.storage.controller.inform_modification(NEW_USER.format(username=username, password=password))
+            self.storage.controller.inform_modification(NEW_USER.format(username=username, password=password,
+                                                                        signature=self.ip_address))
             self.session.transfer_data(ACCEPT)
         else:
             self.session.transfer_data(DUPLICATE_ACCOUNT)
@@ -231,7 +233,8 @@ class ClientThread(Thread):
                                                                         extension=meta_data.get("extension"),
                                                                         path=meta_data.get("path"),
                                                                         sequence_num=len(data_nodes),
-                                                                        username=meta_data.get("username")
+                                                                        username=meta_data.get("username"),
+                                                                        signature=self.ip_address
                                                                         ))
 
             self.session.transfer_data(ACCEPT)

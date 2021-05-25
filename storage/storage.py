@@ -5,7 +5,7 @@ import uuid
 
 from singleton.singleton import Singleton
 from storage.exceptions import DataNodeNotSaved, NotEnoughSpace
-from valid_messages import UPDATE_AVAILABLE_SIZE
+from valid_messages import UPDATE_DATA_NODE
 
 
 class Storage(metaclass=Singleton):
@@ -70,8 +70,11 @@ class Storage(metaclass=Singleton):
 
         self.current_data_node.save()
         self.controller.inform_modification(
-            UPDATE_AVAILABLE_SIZE.format(new_size=self.current_data_node.available_byte_size,
-                                         ip_address=self.current_data_node.ip_address))
+            UPDATE_DATA_NODE.format(available_byte_size=self.current_data_node.available_byte_size,
+                                    ip_address=self.current_data_node.ip_address,
+                                    rack_number=self.current_data_node.rack_number,
+                                    signature=self.current_data_node.ip_address
+                                    ))
 
     def retract_saved_chunk(self, path):
         if self.is_valid_path(path):
