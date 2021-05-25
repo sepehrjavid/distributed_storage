@@ -105,7 +105,8 @@ class ClientThread(Thread):
         username = meta_data.get("username")
         logical_path = meta_data.get("path")
         lst = logical_path.split("/")
-        dir_path = "/".join(lst[:-1])
+        path_owner = lst[0]
+        dir_path = "/".join(lst[1:-1])
 
         if "." in lst[-1]:
             file_name = lst[-1].split(".")[0]
@@ -115,7 +116,7 @@ class ClientThread(Thread):
             extension = None
 
         directory = Directory.find_path_directory(
-            main_dir=Directory.fetch_user_main_directory(username=username, db=self.db_connection), path=dir_path)
+            main_dir=Directory.fetch_user_main_directory(username=path_owner, db=self.db_connection), path=dir_path)
 
         if directory is None:
             self.session.transfer_data(INVALID_PATH)
@@ -161,7 +162,7 @@ class ClientThread(Thread):
         if user is None:
             user = User(db=self.db_connection, username=username, password=password)
             user.save()
-            main_directory = Directory(db=self.db_connection, title=Directory.MAIN_DIR_NAME, parent_directory_id=None)
+            main_directory = Directory(db=self.db_connection, title=Directory.MAIN_DIR_NAME)
             main_directory.save()
             permission = Permission(db=self.db_connection, directory_id=main_directory.id, user_id=user.id,
                                     perm=Permission.READ_WRITE)
@@ -222,13 +223,8 @@ class ClientThread(Thread):
 
         if data_nodes is None:
             self.session.transfer_data(OUT_OF_SPACE)
+            self.session.close()
         else:
-            user = User.fetch_by_username(username=username, db=self.db_connection)
-            file = File(db=self.db_connection, title=meta_data.get("title"), is_complete=False,
-                        extension=meta_data.get("extension"), directory_id=requested_dir.id,
-                        sequence_num=len(data_nodes))
-            file.save()
-            Permission(db=self.db_connection, perm=Permission.READ_WRITE, file_id=file.id, user_id=user.id).save()
             self.storage.controller.inform_modification(NEW_FILE.format(title=meta_data.get("title"),
                                                                         extension=meta_data.get("extension"),
                                                                         path=meta_data.get("path"),
@@ -236,7 +232,12 @@ class ClientThread(Thread):
                                                                         username=meta_data.get("username"),
                                                                         signature=self.ip_address
                                                                         ))
-
             self.session.transfer_data(ACCEPT)
             self.session.transfer_data(pickle.dumps(data_nodes), encode=False)
-        self.session.close()
+            self.session.close()
+            user = User.fetch_by_username(username=username, db=self.db_connection)
+            file = File(db=self.db_connection, title=meta_data.get("title"), is_complete=False,
+                        extension=meta_data.get("extension"), directory_id=requested_dir.id,
+                        sequence_num=len(data_nodes))
+            file.save()
+            Permission(db=self.db_connection, perm=Permission.READ_WRITE, file_id=file.id, user_id=user.id).save()

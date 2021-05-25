@@ -43,8 +43,12 @@ class File:
 
     def get_user_permission(self, username):
         result = self.db.fetch("""SELECT permission.perm FROM permission INNER JOIN file f ON 
-                                permission.file_id = f.id WHERE f.id=?;""", self.id)[0]
-        return result[0]
+                                permission.file_id = f.id WHERE f.id=?;""", self.id)
+
+        if len(result) == 0:
+            return None
+
+        return result[0][0]
 
     @staticmethod
     def fetch_by_id(id, db: MetaDatabase):

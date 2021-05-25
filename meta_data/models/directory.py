@@ -30,8 +30,12 @@ class Directory:
 
     def get_user_permission(self, username):
         result = self.db.fetch("""SELECT permission.perm FROM permission INNER JOIN directory d ON 
-                                permission.directory_id = d.id WHERE d.id=?;""", self.id)[0]
-        return result[0]
+                                permission.directory_id = d.id WHERE d.id=?;""", self.id)
+
+        if len(result) == 0:
+            return None
+
+        return result[0][0]
 
     @property
     def parent_directory(self):
@@ -81,11 +85,19 @@ class Directory:
         result = db.fetch("""SELECT directory.id, directory.title, directory.parent_directory_id, p.perm FROM directory
                             INNER JOIN permission p ON directory.id = p.directory_id INNER JOIN 
                             users u on p.user_id = u.id WHERE u.username=? AND directory.title=?;""", username,
-                          Directory.MAIN_DIR_NAME)[0]
+                          Directory.MAIN_DIR_NAME)
+
+        if len(result) == 0:
+            return None
+
+        result = result[0]
         return Directory(db=db, id=result[0], title=result[1], parent_directory_id=result[2])
 
     @staticmethod
     def find_path_directory(main_dir, path):
+        if main_dir is None:
+            return None
+
         path_dirs = path.split("/")
 
         if path_dirs[0] != Directory.MAIN_DIR_NAME:

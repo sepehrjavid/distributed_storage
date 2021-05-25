@@ -7,7 +7,7 @@ from meta_data.models.file import File
 from meta_data.models.permission import Permission
 from valid_messages import (CREATE_CHUNK, INVALID_METADATA, MESSAGE_SEPARATOR, OUT_OF_SPACE,
                             ACCEPT, REJECT, NEW_CHUNK, NO_PERMISSION, DUPLICATE_CHUNK_FOR_FILE, GET_CHUNK,
-                            CHUNK_NOT_FOUND)
+                            CHUNK_NOT_FOUND, INVALID_PATH)
 from session.sessions import EncryptedSession, FileSession
 from singleton.singleton import Singleton
 from threading import Thread, Lock
@@ -93,7 +93,8 @@ class ClientThread(Thread):
         logical_path = meta_data.get("path")
         sequence = meta_data.get("sequence")
         lst = logical_path.split("/")
-        dir_path = "/".join(lst[:-1])
+        path_owner = lst[0]
+        dir_path = "/".join(lst[1:-1])
 
         if "." in lst[-1]:
             file_name = lst[-1].split(".")[0]
@@ -103,7 +104,12 @@ class ClientThread(Thread):
             extension = None
 
         directory = Directory.find_path_directory(
-            main_dir=Directory.fetch_user_main_directory(username=username, db=self.db), path=dir_path)
+            main_dir=Directory.fetch_user_main_directory(username=path_owner, db=self.db), path=dir_path)
+
+        if directory is None:
+            self.session.transfer_data(INVALID_PATH)
+            self.session.close()
+            return
 
         file = list(filter(lambda x: x.title == file_name and x.extension == extension, directory.files))[0]
         if file.get_user_permission(username) not in [Permission.READ_WRITE, Permission.READ_ONLY]:
@@ -146,6 +152,11 @@ class ClientThread(Thread):
         requested_dir = Directory.find_path_directory(
             main_dir=Directory.fetch_user_main_directory(username=path_owner, db=self.db), path=path)
 
+        if requested_dir is None:
+            self.session.transfer_data(INVALID_PATH)
+            self.session.close()
+            return
+
         if requested_dir.get_user_permission(username) not in [Permission.WRITE_ONLY, Permission.READ_WRITE]:
             self.session.transfer_data(NO_PERMISSION)
             self.session.close()
@@ -165,15 +176,13 @@ class ClientThread(Thread):
         self.session.transfer_data(ACCEPT)
 
         destination_file_path = self.storage.get_new_file_path()
-
         file_session = FileSession()
         file_session.receive_file(destination_file_path, session=self.session)
-
-        chunk = Chunk(db=self.db, sequence=meta_data.get("sequence"), local_path=destination_file_path,
-                      chunk_size=meta_data.get("chunk_size"), data_node_id=self.storage.current_data_node.id,
-                      file_id=file.id)
-        chunk.save()
         self.session.close()
+
+        Chunk(db=self.db, sequence=meta_data.get("sequence"), local_path=destination_file_path,
+              chunk_size=meta_data.get("chunk_size"), data_node_id=self.storage.current_data_node.id,
+              file_id=file.id).save()
 
         self.storage.controller.inform_modification(
             NEW_CHUNK.format(ip_address=self.storage.current_data_node.ip_address,
