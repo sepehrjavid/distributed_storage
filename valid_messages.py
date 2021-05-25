@@ -6,7 +6,7 @@ MESSAGE_SEPARATOR = "-"
 
 CREATE_FILE = "crf-{total_size}-{path}-{username}-{title}-{extension}"
 DELETE_FILE = "rmf-{title}-{permission}"
-CREATE_CHUNK = "crc-{sequence}-{chunk_size}-{username}-{path}-{title}-{extension}"
+CREATE_CHUNK = "crc-{sequence}-{chunk_size}-{path}-{title}-{extension}"
 GET_FILE = "getf-{path}-{username}"
 GET_CHUNK = "getc-{path}-{username}-{sequence}"
 

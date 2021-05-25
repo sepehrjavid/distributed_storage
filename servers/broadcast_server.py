@@ -193,10 +193,11 @@ class ClientThread(Thread):
     def create_file(self, command):
         meta_data = dict(parse.parse(CREATE_FILE, command).named)
         username = meta_data.get("username")
+        path_owner = meta_data.get("path").split("/")[0]
+        path = "/".join(meta_data.get("path").split("/")[1:])
 
         requested_dir = Directory.find_path_directory(
-            main_dir=Directory.fetch_user_main_directory(username=username, db=self.db_connection),
-            path=meta_data.get("path"))
+            main_dir=Directory.fetch_user_main_directory(username=path_owner, db=self.db_connection), path=path)
 
         if requested_dir is None:
             self.session.transfer_data(INVALID_PATH)

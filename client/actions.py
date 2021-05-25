@@ -115,7 +115,10 @@ class ClientActions:
             return True
         return False
 
-    def send_file(self, file_path, logical_path):
+    def send_file(self):
+        file_path = input("Enter the desired file path:\n")
+        logical_path = input("Enter the desired logical path:\n")
+
         file_detail = ntpath.basename(file_path).split(".")
 
         filename = file_detail[0]

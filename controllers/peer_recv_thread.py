@@ -63,9 +63,11 @@ class PeerRecvThread(Thread):
 
     def create_chunk(self, message):
         meta_data = dict(parse.parse(NEW_CHUNK, message).named)
+        path_owner = meta_data.get("path").split("/")[0]
+        path = "/".join(meta_data.get("path").split("/")[1:])
+
         requested_dir = Directory.find_path_directory(
-            main_dir=Directory.fetch_user_main_directory(username=meta_data.get("username"), db=self.db),
-            path=meta_data.get("path"))
+            main_dir=Directory.fetch_user_main_directory(username=path_owner, db=self.db), path=path)
         file = File.fetch_by_dir_title_extension(dir_id=requested_dir.id, title=meta_data.get("title"),
                                                  extension=meta_data.get("extension"), db=self.db)
         data_node = DataNode.fetch_by_ip(meta_data.get("ip_address"), db=self.db)
@@ -96,10 +98,12 @@ class PeerRecvThread(Thread):
 
     def create_file(self, message):
         meta_data = dict(parse.parse(NEW_FILE, message).named)
+        path_owner = meta_data.get("path").split("/")[0]
+        path = "/".join(meta_data.get("path").split("/")[1:])
+
         user = User.fetch_by_username(username=meta_data.get("username"), db=self.db)
         requested_dir = Directory.find_path_directory(
-            main_dir=Directory.fetch_user_main_directory(username=user.username, db=self.db),
-            path=meta_data.get("path"))
+            main_dir=Directory.fetch_user_main_directory(username=path_owner, db=self.db), path=path)
 
         if File.fetch_by_dir_title_extension(dir_id=requested_dir.id, extension=meta_data.get("extension"),
                                              title=meta_data.get("title"), db=self.db) is None:

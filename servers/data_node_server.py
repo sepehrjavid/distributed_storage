@@ -1,3 +1,5 @@
+import os
+
 from meta_data.database import MetaDatabase
 from meta_data.models.chunk import Chunk
 from meta_data.models.directory import Directory
@@ -111,7 +113,7 @@ class ClientThread(Thread):
         requested_chunk = Chunk.fetch_by_file_id_data_node_id_sequence(file_id=file.id,
                                                                        data_node_id=self.storage.current_data_node.id,
                                                                        sequence=sequence, db=self.db)
-        if requested_chunk is None:
+        if requested_chunk is None or not os.path.isfile(requested_chunk.local_path):
             self.session.transfer_data(CHUNK_NOT_FOUND)
             self.session.close()
             return
@@ -137,10 +139,11 @@ class ClientThread(Thread):
             return
 
         username = meta_data.get("username")
+        path_owner = meta_data.get("path").split("/")[0]
+        path = "/".join(meta_data.get("path").split("/")[1:])
 
         requested_dir = Directory.find_path_directory(
-            main_dir=Directory.fetch_user_main_directory(username=username, db=self.db),
-            path=meta_data.get("path"))
+            main_dir=Directory.fetch_user_main_directory(username=path_owner, db=self.db), path=path)
 
         if requested_dir.get_user_permission(username) not in [Permission.WRITE_ONLY, Permission.READ_WRITE]:
             self.session.transfer_data(NO_PERMISSION)
@@ -178,6 +181,5 @@ class ClientThread(Thread):
                              path=meta_data.get("path"),
                              title=meta_data.get("title"),
                              extension=meta_data.get("extension"),
-                             username=username,
                              destination_file_path=destination_file_path
                              ))
