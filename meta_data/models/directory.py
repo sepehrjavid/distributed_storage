@@ -30,7 +30,8 @@ class Directory:
 
     def get_user_permission(self, username):
         result = self.db.fetch("""SELECT permission.perm FROM permission INNER JOIN directory d ON 
-                                permission.directory_id = d.id WHERE d.id=?;""", self.id)
+                                permission.directory_id = d.id INNER JOIN users u ON permission.user_id = u.id
+                                WHERE d.id=? AND u.username=?;""", self.id, username)
 
         if len(result) == 0:
             return None

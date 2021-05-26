@@ -43,7 +43,8 @@ class File:
 
     def get_user_permission(self, username):
         result = self.db.fetch("""SELECT permission.perm FROM permission INNER JOIN file f ON 
-                                permission.file_id = f.id WHERE f.id=?;""", self.id)
+                                permission.file_id = f.id INNER JOIN users u ON permission.user_id = u.id
+                                WHERE f.id=? AND u.username=?;""", self.id, username)
 
         if len(result) == 0:
             return None
