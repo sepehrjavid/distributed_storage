@@ -13,7 +13,8 @@ from meta_data.models.permission import Permission
 from meta_data.models.user import User
 from valid_messages import (CREATE_FILE, MESSAGE_SEPARATOR, OUT_OF_SPACE, ACCEPT, DUPLICATE_FILE_FOR_USER,
                             NEW_FILE, NO_PERMISSION, INVALID_PATH, LOGIN, CREDENTIALS, USER_NOT_FOUND, AUTH_FAILED,
-                            CREATE_ACCOUNT, DUPLICATE_ACCOUNT, NEW_USER, GET_FILE, FILE_DOES_NOT_EXIST, CORRUPTED_FILE)
+                            CREATE_ACCOUNT, DUPLICATE_ACCOUNT, NEW_USER, GET_FILE, FILE_DOES_NOT_EXIST, CORRUPTED_FILE,
+                            CREATE_DIR, DUPLICATE_DIR_NAME, NEW_DIR)
 from session.exceptions import PeerTimeOutException
 from session.sessions import EncryptedSession
 from singleton.singleton import Singleton
@@ -99,6 +100,45 @@ class ClientThread(Thread):
             self.create_account()
         elif command == GET_FILE.split(MESSAGE_SEPARATOR)[0]:
             self.get_file(message)
+        elif command == CREATE_DIR.split(MESSAGE_SEPARATOR)[0]:
+            self.create_directory(message)
+
+    def create_directory(self, message):
+        meta_data = dict(parse.parse(CREATE_DIR, message).named)
+        username = meta_data.get("username")
+        lst = meta_data.get("path").split("/")
+        path_owner = lst[0]
+        new_dir_name = lst[-1]
+        dir_path = "/".join(lst[1:-1])
+
+        directory = Directory.find_path_directory(
+            main_dir=Directory.fetch_user_main_directory(username=path_owner, db=self.db_connection), path=dir_path)
+
+        if directory is None:
+            self.session.transfer_data(INVALID_PATH)
+            self.session.close()
+            return
+
+        if new_dir_name in [x.title for x in directory.children]:
+            self.session.transfer_data(DUPLICATE_DIR_NAME)
+            self.session.close()
+            return
+
+        if directory.get_user_permission(username) not in [Permission.READ_WRITE, Permission.READ_ONLY]:
+            self.session.transfer_data(NO_PERMISSION)
+            self.session.close()
+            return
+
+        self.session.transfer_data(ACCEPT)
+        self.session.close()
+
+        new_dir = Directory(db=self.db_connection, title=new_dir_name, parent_directory_id=directory.id)
+        new_dir.save()
+        Permission(db=self.db_connection, perm=Permission.READ_WRITE, directory_id=new_dir.id,
+                   user_id=User.fetch_by_username(username=username).id).save()
+
+        self.storage.controller.inform_modification(NEW_DIR.format(path=meta_data.get("path"), username=username,
+                                                                   signature=self.ip_address))
 
     def get_file(self, message):
         meta_data = dict(parse.parse(GET_FILE, message).named)

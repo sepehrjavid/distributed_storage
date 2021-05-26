@@ -12,7 +12,7 @@ from meta_data.models.permission import Permission
 from meta_data.models.user import User
 from valid_messages import (CONFIRM_HANDSHAKE, STOP_FRIENDSHIP, RESPOND_TO_INTRODUCTION, ACCEPT, INTRODUCE_PEER,
                             MESSAGE_SEPARATOR, SEND_DB, UPDATE_DATA_NODE, UNBLOCK_QUEUEING, START_CLIENT_SERVER,
-                            NEW_USER, NEW_FILE, NEW_CHUNK)
+                            NEW_USER, NEW_FILE, NEW_CHUNK, NEW_DIR)
 from session.exceptions import PeerTimeOutException
 from session.sessions import SimpleSession, FileSession, EncryptedSession
 
@@ -49,9 +49,37 @@ class PeerRecvThread(Thread):
             self.create_file(message)
         elif command == NEW_CHUNK.split(MESSAGE_SEPARATOR)[0]:
             self.create_chunk(message)
+        elif command == NEW_DIR.split(MESSAGE_SEPARATOR)[0]:
+            self.create_dir(message)
         elif message == STOP_FRIENDSHIP:
             self.session.close()
             self.continues = False
+
+    def create_dir(self, message):
+        meta_data = dict(parse.parse(NEW_DIR, message).named)
+        signature = meta_data.get("signature")
+
+        if self.controller.ip_address not in signature.split('-'):
+            username = meta_data.get("username")
+            self.controller.inform_next_node(NEW_DIR.format(
+                path=meta_data.get("path"),
+                username=username,
+                signature=f"{signature}-{self.controller.ip_address}"
+
+            ))
+
+            lst = meta_data.get("path").split("/")
+            path_owner = lst[0]
+            new_dir_name = lst[-1]
+            dir_path = "/".join(lst[1:-1])
+
+            directory = Directory.find_path_directory(
+                main_dir=Directory.fetch_user_main_directory(username=path_owner, db=self.db), path=dir_path)
+
+            new_dir = Directory(db=self.db, title=new_dir_name, parent_directory_id=directory.id)
+            new_dir.save()
+            Permission(db=self.db, perm=Permission.READ_WRITE, directory_id=new_dir.id,
+                       user_id=User.fetch_by_username(username=username).id).save()
 
     def create_chunk(self, message):
         meta_data = dict(parse.parse(NEW_CHUNK, message).named)
