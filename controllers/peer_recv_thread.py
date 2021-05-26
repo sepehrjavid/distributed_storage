@@ -35,6 +35,7 @@ class PeerRecvThread(Thread):
                 self.handle_message(message)
 
     def handle_message(self, message):
+        print(message)
         command = message.split(MESSAGE_SEPARATOR)[0]
         if command == INTRODUCE_PEER.split(MESSAGE_SEPARATOR)[0]:
             self.add_peer(message)

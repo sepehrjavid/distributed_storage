@@ -142,6 +142,7 @@ class ClientActions:
         elif response == ACCEPT:
             chunk_instructions = pickle.loads(session.receive_data(decode=False))
         else:
+            print(response)
             print("Something went wrong!")
             return
 
