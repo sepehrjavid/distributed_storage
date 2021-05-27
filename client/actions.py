@@ -11,7 +11,8 @@ import os
 from servers.broadcast_server import BroadcastServer
 from servers.data_node_server import DataNodeServer
 from valid_messages import CREATE_FILE, CREATE_CHUNK, ACCEPT, OUT_OF_SPACE, LOGIN, CREDENTIALS, CREATE_ACCOUNT, \
-    GET_FILE, INVALID_PATH, FILE_DOES_NOT_EXIST, NO_PERMISSION, CORRUPTED_FILE, GET_CHUNK
+    GET_FILE, INVALID_PATH, FILE_DOES_NOT_EXIST, NO_PERMISSION, CORRUPTED_FILE, GET_CHUNK, CREATE_DIR, \
+    DUPLICATE_DIR_NAME
 from session.sessions import EncryptedSession, FileSession
 
 
@@ -229,3 +230,25 @@ class ClientActions:
             thread.join()
 
         file.close()
+
+    def create_new_dir(self):
+        path = input("Enter path: ")
+        dir_name = input("Enter directory name: ")
+
+        client_socket = self.ask_for_service(CREATE_DIR.format(path=path + "/" + dir_name, username=self.username))
+        session = EncryptedSession(input_socket=client_socket, is_server=True)
+
+        response = session.receive_data()
+        session.close()
+
+        if response == INVALID_PATH:
+            print("Invalid Directory Path")
+            return
+        elif response == NO_PERMISSION:
+            print("Permission Denied")
+            return
+        elif response == DUPLICATE_DIR_NAME:
+            print("Directory name already exists under this path")
+            return
+
+        print("Success!")
