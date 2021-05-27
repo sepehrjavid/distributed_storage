@@ -5,7 +5,7 @@ Client-Peer Messages
 MESSAGE_SEPARATOR = "-"
 
 CREATE_FILE = "crf-{total_size}-{path}-{username}-{title}-{extension}"
-DELETE_FILE = "rmf-{title}-{permission}"
+DELETE_FILE = "rmf-{username}-{path}"
 CREATE_CHUNK = "crc-{sequence}-{chunk_size}-{username}-{path}-{title}-{extension}"
 CREATE_DIR = "cd-{path}-{username}"
 GET_FILE = "getf-{path}-{username}"
@@ -60,6 +60,7 @@ NEW_FILE = "nwfl-{title}-{extension}-{username}-{path}-{sequence_num}-{signature
 NEW_USER = "nwusr-{username}-{password}-{signature}"
 NEW_CHUNK = "nwchnk-{ip_address}-{sequence}-{chunk_size}-{path}-{title}-{extension}-{destination_file_path}-{signature}"
 NEW_DIR = "nwdir-{path}-{username}-{signature}"
+REMOVE_FILE = "remfile-{path}-{signature}"
 
 """
 Inter-Process Communication

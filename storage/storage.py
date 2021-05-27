@@ -76,7 +76,7 @@ class Storage(metaclass=Singleton):
                                     signature=self.current_data_node.ip_address
                                     ))
 
-    def retract_saved_chunk(self, path):
+    def remove_chunk_file(self, path):
         if self.is_valid_path(path):
             os.remove(path)
 

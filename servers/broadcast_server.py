@@ -14,7 +14,7 @@ from meta_data.models.user import User
 from valid_messages import (CREATE_FILE, MESSAGE_SEPARATOR, OUT_OF_SPACE, ACCEPT, DUPLICATE_FILE_FOR_USER,
                             NEW_FILE, NO_PERMISSION, INVALID_PATH, LOGIN, CREDENTIALS, USER_NOT_FOUND, AUTH_FAILED,
                             CREATE_ACCOUNT, DUPLICATE_ACCOUNT, NEW_USER, GET_FILE, FILE_DOES_NOT_EXIST, CORRUPTED_FILE,
-                            CREATE_DIR, DUPLICATE_DIR_NAME, NEW_DIR)
+                            CREATE_DIR, DUPLICATE_DIR_NAME, NEW_DIR, DELETE_FILE, REMOVE_FILE)
 from session.exceptions import PeerTimeOutException
 from session.sessions import EncryptedSession
 from singleton.singleton import Singleton
@@ -102,6 +102,56 @@ class ClientThread(Thread):
             self.get_file(message)
         elif command == CREATE_DIR.split(MESSAGE_SEPARATOR)[0]:
             self.create_directory(message)
+        elif command == DELETE_FILE.split(MESSAGE_SEPARATOR)[0]:
+            self.delete_file(message)
+
+    def delete_file(self, message):
+        meta_data = dict(parse.parse(DELETE_FILE, message).named)
+        username = meta_data.get("username")
+        logical_path = meta_data.get("path")
+        lst = logical_path.split("/")
+        path_owner = lst[0]
+        dir_path = "/".join(lst[1:-1])
+
+        if "." in lst[-1]:
+            file_name = lst[-1].split(".")[0]
+            extension = lst[-1].split(".")[1]
+        else:
+            file_name = lst[-1].split(".")[0]
+            extension = None
+
+        directory = Directory.find_path_directory(
+            main_dir=Directory.fetch_user_main_directory(username=path_owner, db=self.db_connection), path=dir_path)
+
+        if directory is None:
+            self.session.transfer_data(INVALID_PATH)
+            self.session.close()
+            return
+
+        files = directory.files
+        possible_file = list(filter(lambda x: x.title == file_name and x.extension == extension, files))
+        if len(possible_file) == 0:
+            self.session.transfer_data(FILE_DOES_NOT_EXIST)
+            self.session.close()
+            return
+
+        file = possible_file[0]
+
+        if file.get_user_permission(username) not in [Permission.READ_WRITE, Permission.READ_ONLY]:
+            self.session.transfer_data(NO_PERMISSION)
+            self.session.close()
+            return
+
+        for chunk in file.chunks:
+            self.storage.remove_chunk_file(chunk.local_path)
+        file.delete()
+        self.session.transfer_data(ACCEPT)
+        self.session.close()
+
+        self.storage.controller.inform_modification(REMOVE_FILE.format(
+            path=meta_data.get("path"),
+            signature=self.ip_address
+        ))
 
     def create_directory(self, message):
         meta_data = dict(parse.parse(CREATE_DIR, message).named)

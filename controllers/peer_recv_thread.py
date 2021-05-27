@@ -10,9 +10,10 @@ from meta_data.models.directory import Directory
 from meta_data.models.file import File
 from meta_data.models.permission import Permission
 from meta_data.models.user import User
+from storage.storage import Storage
 from valid_messages import (CONFIRM_HANDSHAKE, STOP_FRIENDSHIP, RESPOND_TO_INTRODUCTION, ACCEPT, INTRODUCE_PEER,
                             MESSAGE_SEPARATOR, SEND_DB, UPDATE_DATA_NODE, UNBLOCK_QUEUEING, START_CLIENT_SERVER,
-                            NEW_USER, NEW_FILE, NEW_CHUNK, NEW_DIR)
+                            NEW_USER, NEW_FILE, NEW_CHUNK, NEW_DIR, REMOVE_FILE)
 from session.exceptions import PeerTimeOutException
 from session.sessions import SimpleSession, FileSession, EncryptedSession
 
@@ -51,9 +52,42 @@ class PeerRecvThread(Thread):
             self.create_chunk(message)
         elif command == NEW_DIR.split(MESSAGE_SEPARATOR)[0]:
             self.create_dir(message)
+        elif command == REMOVE_FILE.split(MESSAGE_SEPARATOR)[0]:
+            self.delete_file(message)
         elif message == STOP_FRIENDSHIP:
             self.session.close()
             self.continues = False
+
+    def delete_file(self, message):
+        meta_data = dict(parse.parse(REMOVE_FILE, message).named)
+        signature = meta_data.get("signature")
+
+        if self.controller.ip_address not in signature.split('-'):
+            self.controller.inform_next_node(REMOVE_FILE.format(
+                path=meta_data.get("path"),
+                signature=f"{signature}-{self.controller.ip_address}"
+            ))
+
+            logical_path = meta_data.get("path")
+            lst = logical_path.split("/")
+            path_owner = lst[0]
+            dir_path = "/".join(lst[1:-1])
+
+            if "." in lst[-1]:
+                file_name = lst[-1].split(".")[0]
+                extension = lst[-1].split(".")[1]
+            else:
+                file_name = lst[-1].split(".")[0]
+                extension = None
+
+            directory = Directory.find_path_directory(
+                main_dir=Directory.fetch_user_main_directory(username=path_owner, db=self.db), path=dir_path)
+
+            file = list(filter(lambda x: x.title == file_name and x.extension == extension, directory.files))[0]
+            storage = Storage()
+            for chunk in file.chunks:
+                storage.remove_chunk_file(chunk.local_path)
+            file.delete()
 
     def create_dir(self, message):
         meta_data = dict(parse.parse(NEW_DIR, message).named)

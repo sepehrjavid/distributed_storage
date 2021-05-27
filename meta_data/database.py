@@ -23,7 +23,8 @@ class MetaDatabase:
                                                     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                                                     title VARCHAR(200) NOT NULL,
                                                     parent_directory_id INTEGER,
-                                                    FOREIGN KEY (parent_directory_id) REFERENCES directory (id)
+                                                    FOREIGN KEY (parent_directory_id) REFERENCES directory (id) 
+                                                    ON DELETE CASCADE
                                                         );""")
 
         cursor.execute("""CREATE TABLE IF NOT EXISTS file (
@@ -33,7 +34,7 @@ class MetaDatabase:
                                             is_complete INTEGER NOT NULL DEFAULT 0,
                                             directory_id INTEGER NOT NULL,
                                             sequence_num INTEGER NOT NULL,
-                                            FOREIGN KEY (directory_id) REFERENCES directory (id)
+                                            FOREIGN KEY (directory_id) REFERENCES directory (id) ON DELETE CASCADE
                                                 );""")
 
         cursor.execute("""CREATE TABLE IF NOT EXISTS permission (
@@ -42,9 +43,9 @@ class MetaDatabase:
                                             file_id INTEGER,
                                             directory_id INTEGER,
                                             user_id INTEGER NOT NULL,
-                                            FOREIGN KEY (user_id) REFERENCES users (id),
-                                            FOREIGN KEY (file_id) REFERENCES file (id),
-                                            FOREIGN KEY (directory_id) REFERENCES directory (id),
+                                            FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+                                            FOREIGN KEY (file_id) REFERENCES file (id) ON DELETE CASCADE,
+                                            FOREIGN KEY (directory_id) REFERENCES directory (id) ON DELETE CASCADE,
                                             UNIQUE (user_id, directory_id),
                                             UNIQUE (user_id, file_id)
                                                 );""")
@@ -64,8 +65,8 @@ class MetaDatabase:
                             chunk_size INTEGER NOT NULL,
                             data_node_id INTEGER NOT NULL,
                             file_id INTEGER NOT NULL,
-                            FOREIGN KEY (data_node_id) REFERENCES data_node (id),
-                            FOREIGN KEY (file_id) REFERENCES file (id)
+                            FOREIGN KEY (data_node_id) REFERENCES data_node (id) ON DELETE CASCADE,
+                            FOREIGN KEY (file_id) REFERENCES file (id) ON DELETE CASCADE
                                 );""")
 
         connection.close()
