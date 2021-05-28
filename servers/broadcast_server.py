@@ -171,7 +171,7 @@ class ClientThread(Thread):
 
         file = possible_file[0]
 
-        if file.get_user_permission(username) not in [Permission.READ_WRITE, Permission.READ_ONLY]:
+        if file.get_user_permission(username) not in [Permission.READ_WRITE, Permission.READ_ONLY, Permission.OWNER]:
             self.session.transfer_data(NO_PERMISSION)
             self.session.close()
             return
@@ -208,7 +208,8 @@ class ClientThread(Thread):
             self.session.close()
             return
 
-        if directory.get_user_permission(username) not in [Permission.READ_WRITE, Permission.READ_ONLY]:
+        if directory.get_user_permission(username) not in [Permission.READ_WRITE, Permission.READ_ONLY,
+                                                           Permission.OWNER]:
             self.session.transfer_data(NO_PERMISSION)
             self.session.close()
             return
@@ -218,7 +219,7 @@ class ClientThread(Thread):
 
         new_dir = Directory(db=self.db_connection, title=new_dir_name, parent_directory_id=directory.id)
         new_dir.save()
-        Permission(db=self.db_connection, perm=Permission.READ_WRITE, directory_id=new_dir.id,
+        Permission(db=self.db_connection, perm=Permission.OWNER, directory_id=new_dir.id,
                    user_id=User.fetch_by_username(username=username).id).save()
 
         self.storage.controller.inform_modification(NEW_DIR.format(path=meta_data.get("path"), username=username,
@@ -256,7 +257,7 @@ class ClientThread(Thread):
 
         file = possible_file[0]
 
-        if file.get_user_permission(username) not in [Permission.READ_WRITE, Permission.READ_ONLY]:
+        if file.get_user_permission(username) not in [Permission.READ_WRITE, Permission.READ_ONLY, Permission.OWNER]:
             self.session.transfer_data(NO_PERMISSION)
             self.session.close()
             return
@@ -289,7 +290,7 @@ class ClientThread(Thread):
             main_directory = Directory(db=self.db_connection, title=Directory.MAIN_DIR_NAME)
             main_directory.save()
             permission = Permission(db=self.db_connection, directory_id=main_directory.id, user_id=user.id,
-                                    perm=Permission.READ_WRITE)
+                                    perm=Permission.OWNER)
             permission.save()
             self.storage.controller.inform_modification(NEW_USER.format(username=username, password=password,
                                                                         signature=self.ip_address))
@@ -331,7 +332,8 @@ class ClientThread(Thread):
             self.session.close()
             return
 
-        if requested_dir.get_user_permission(username) not in [Permission.WRITE_ONLY, Permission.READ_WRITE]:
+        if requested_dir.get_user_permission(username) not in [Permission.WRITE_ONLY, Permission.READ_WRITE,
+                                                               Permission.OWNER]:
             self.session.transfer_data(NO_PERMISSION)
             self.session.close()
             return
@@ -364,4 +366,4 @@ class ClientThread(Thread):
                         extension=meta_data.get("extension"), directory_id=requested_dir.id,
                         sequence_num=len(data_nodes))
             file.save()
-            Permission(db=self.db_connection, perm=Permission.READ_WRITE, file_id=file.id, user_id=user.id).save()
+            Permission(db=self.db_connection, perm=Permission.OWNER, file_id=file.id, user_id=user.id).save()
