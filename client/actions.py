@@ -12,7 +12,7 @@ from servers.broadcast_server import BroadcastServer
 from servers.data_node_server import DataNodeServer
 from valid_messages import CREATE_FILE, CREATE_CHUNK, ACCEPT, OUT_OF_SPACE, LOGIN, CREDENTIALS, CREATE_ACCOUNT, \
     GET_FILE, INVALID_PATH, FILE_DOES_NOT_EXIST, NO_PERMISSION, CORRUPTED_FILE, GET_CHUNK, CREATE_DIR, \
-    DUPLICATE_DIR_NAME, DELETE_FILE
+    DUPLICATE_DIR_NAME, DELETE_FILE, ADD_DIR_PERM, INVALID_USERNAME
 from session.sessions import EncryptedSession, FileSession
 
 
@@ -70,7 +70,7 @@ class ClientActions:
             print(response)
             session.close()
 
-    def ask_for_service(self, message):
+    def ask_for_service(self, message) -> EncryptedSession:
         broadcast_address = ipaddress.ip_network(self.configuration[self.DATA_NODE_NETWORK_ADDRESS]).broadcast_address
         transmitter = SimpleTransmitter(str(broadcast_address), BroadcastServer.BROADCAST_SERVER_PORT_NUMBER)
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -86,14 +86,13 @@ class ClientActions:
             except socket.timeout:
                 transmitter.transmit(message)
 
-        return client_socket
+        return EncryptedSession(input_socket=client_socket, is_server=True)
 
     def create_account(self):
         username = input("Username: ")
         password = input("Password: ")
 
-        client_socket = self.ask_for_service(CREATE_ACCOUNT)
-        session = EncryptedSession(input_socket=client_socket, is_server=True)
+        session = self.ask_for_service(CREATE_ACCOUNT)
         session.transfer_data(CREDENTIALS.format(username=username, password=password))
         response = session.receive_data()
 
@@ -106,8 +105,7 @@ class ClientActions:
         username = input("Username: ")
         password = input("Password: ")
 
-        client_socket = self.ask_for_service(LOGIN)
-        session = EncryptedSession(input_socket=client_socket, is_server=True)
+        session = self.ask_for_service(LOGIN)
         session.transfer_data(CREDENTIALS.format(username=username, password=password))
         response = session.receive_data()
 
@@ -128,14 +126,13 @@ class ClientActions:
         else:
             extension = file_detail[1]
 
-        client_socket = self.ask_for_service(message=CREATE_FILE.format(total_size=os.path.getsize(file_path),
-                                                                        path=logical_path,
-                                                                        username=self.username,
-                                                                        title=filename,
-                                                                        extension=extension
-                                                                        ))
+        session = self.ask_for_service(message=CREATE_FILE.format(total_size=os.path.getsize(file_path),
+                                                                  path=logical_path,
+                                                                  username=self.username,
+                                                                  title=filename,
+                                                                  extension=extension
+                                                                  ))
 
-        session = EncryptedSession(input_socket=client_socket, is_server=True)
         response = session.receive_data()
         if response == OUT_OF_SPACE:
             print("The file system is out of space")
@@ -194,8 +191,7 @@ class ClientActions:
         save_to_path = input("Save to path: ")
         filename = logical_file_path.split("/")[-1]
 
-        client_socket = self.ask_for_service(GET_FILE.format(path=logical_file_path, username=self.username))
-        session = EncryptedSession(input_socket=client_socket, is_server=True)
+        session = self.ask_for_service(GET_FILE.format(path=logical_file_path, username=self.username))
 
         response = session.receive_data(decode=False)
         session.close()
@@ -235,8 +231,7 @@ class ClientActions:
         path = input("Enter path: ")
         dir_name = input("Enter directory name: ")
 
-        client_socket = self.ask_for_service(CREATE_DIR.format(path=path + "/" + dir_name, username=self.username))
-        session = EncryptedSession(input_socket=client_socket, is_server=True)
+        session = self.ask_for_service(CREATE_DIR.format(path=path + "/" + dir_name, username=self.username))
 
         response = session.receive_data()
         session.close()
@@ -253,15 +248,31 @@ class ClientActions:
     def remove_file(self):
         logical_path = input("Enter the path: ")
 
-        client_socket = self.ask_for_service(DELETE_FILE.format(path=logical_path, username=self.username))
-        session = EncryptedSession(input_socket=client_socket, is_server=True)
+        session = self.ask_for_service(DELETE_FILE.format(path=logical_path, username=self.username))
 
         response = session.receive_data()
         session.close()
 
         if response == ACCEPT:
             print("Success!")
-        elif response == INVALID_PATH.encode() or response == FILE_DOES_NOT_EXIST.encode():
+        elif response == INVALID_PATH or response == FILE_DOES_NOT_EXIST:
             print("Invalid File Path")
-        elif response == NO_PERMISSION.encode():
+        elif response == NO_PERMISSION:
             print("Permission Denied")
+
+    def grant_directory_permission(self):
+        path = input("Enter the directory path: ")
+        user = input("Enter the username to grant permission to: ")
+
+        session = self.ask_for_service(ADD_DIR_PERM.format(owner_username=self.username, path=path, perm_username=user))
+
+        response = session.receive_data()
+
+        if response == ACCEPT:
+            print("Success!")
+        elif response == INVALID_PATH:
+            print("Invalid File Path")
+        elif response == NO_PERMISSION:
+            print("Permission Denied")
+        elif response == INVALID_USERNAME:
+            print("Invalid Username")

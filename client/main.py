@@ -10,7 +10,8 @@ class Main:
     DELETE_FILE = "2"
     RETRIEVE_FILE = "3"
     NEW_DIR = "4"
-    EXIT_COMMAND = "5"
+    GRANT_DIR_PERM = "5"
+    EXIT_COMMAND = "6"
 
     def __init__(self, ip_address):
         self.ip_address = ip_address
@@ -32,15 +33,24 @@ class Main:
                 print("Authentication Failed!!")
 
         while True:
-            command = input("Choose action:\n1.send file\n2.delete file\n3.Retrieve file\n4.Exit\n")
+            command = input("""Choose action:
+            1.send file
+            2.delete file
+            3.Retrieve file
+            4.New directory
+            5.Grant directory permission
+            6.Exit""")
+
             if command == self.SEND_FILE:
                 self.client_actions.send_file()
             elif command == self.RETRIEVE_FILE:
                 self.client_actions.retrieve_file()
             elif command == self.DELETE_FILE:
-                pass
+                self.client_actions.remove_file()
             elif command == self.NEW_DIR:
-                pass
+                self.client_actions.create_new_dir()
+            elif command == self.GRANT_DIR_PERM:
+                self.client_actions.grant_directory_permission()
             elif command == self.EXIT_COMMAND:
                 break
 
