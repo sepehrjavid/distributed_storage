@@ -15,7 +15,7 @@ from valid_messages import (CREATE_FILE, MESSAGE_SEPARATOR, OUT_OF_SPACE, ACCEPT
                             NEW_FILE, NO_PERMISSION, INVALID_PATH, LOGIN, CREDENTIALS, USER_NOT_FOUND, AUTH_FAILED,
                             CREATE_ACCOUNT, DUPLICATE_ACCOUNT, NEW_USER, GET_FILE, FILE_DOES_NOT_EXIST, CORRUPTED_FILE,
                             CREATE_DIR, DUPLICATE_DIR_NAME, NEW_DIR, DELETE_FILE, REMOVE_FILE, ADD_DIR_PERM,
-                            INVALID_USERNAME)
+                            INVALID_USERNAME, INVALID_PERMISSION_VALUE)
 from session.exceptions import PeerTimeOutException
 from session.sessions import EncryptedSession
 from singleton.singleton import Singleton
@@ -112,9 +112,15 @@ class ClientThread(Thread):
         meta_data = dict(parse.parse(ADD_DIR_PERM, message).named)
         owner_username = meta_data.get("owner_username")
         permission_username = meta_data.get("perm_username")
+        permission = meta_data.get("perm")
         lst = meta_data.get("path").split("/")
         path_owner = lst[0]
         dir_path = "/".join(lst[1:])
+
+        if permission not in Permission.ALLOWED_PERMISSIONS:
+            self.session.transfer_data(INVALID_PERMISSION_VALUE)
+            self.session.close()
+            return
 
         directory = Directory.find_path_directory(
             main_dir=Directory.fetch_user_main_directory(username=path_owner, db=self.db_connection), path=dir_path)
@@ -135,7 +141,7 @@ class ClientThread(Thread):
             self.session.close()
             return
 
-        Permission(db=self.db_connection, user_id=user.id, directory_id=directory.id).save()
+        Permission(db=self.db_connection, user_id=user.id, directory_id=directory.id, perm=permission).save()
         self.session.transfer_data(ACCEPT)
         self.session.close()
 

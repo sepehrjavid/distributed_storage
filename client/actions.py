@@ -12,7 +12,7 @@ from servers.broadcast_server import BroadcastServer
 from servers.data_node_server import DataNodeServer
 from valid_messages import CREATE_FILE, CREATE_CHUNK, ACCEPT, OUT_OF_SPACE, LOGIN, CREDENTIALS, CREATE_ACCOUNT, \
     GET_FILE, INVALID_PATH, FILE_DOES_NOT_EXIST, NO_PERMISSION, CORRUPTED_FILE, GET_CHUNK, CREATE_DIR, \
-    DUPLICATE_DIR_NAME, DELETE_FILE, ADD_DIR_PERM, INVALID_USERNAME
+    DUPLICATE_DIR_NAME, DELETE_FILE, ADD_DIR_PERM, INVALID_USERNAME, INVALID_PERMISSION_VALUE
 from session.sessions import EncryptedSession, FileSession
 
 
@@ -263,8 +263,10 @@ class ClientActions:
     def grant_directory_permission(self):
         path = input("Enter the directory path: ")
         user = input("Enter the username to grant permission to: ")
+        permission = input("Enter permission value: ")
 
-        session = self.ask_for_service(ADD_DIR_PERM.format(owner_username=self.username, path=path, perm_username=user))
+        session = self.ask_for_service(
+            ADD_DIR_PERM.format(owner_username=self.username, path=path, perm_username=user, perm=permission))
 
         response = session.receive_data()
 
@@ -276,3 +278,5 @@ class ClientActions:
             print("Permission Denied")
         elif response == INVALID_USERNAME:
             print("Invalid Username")
+        elif response == INVALID_PERMISSION_VALUE:
+            print("Invalid permission value")
