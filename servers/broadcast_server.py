@@ -14,7 +14,8 @@ from meta_data.models.user import User
 from valid_messages import (CREATE_FILE, MESSAGE_SEPARATOR, OUT_OF_SPACE, ACCEPT, DUPLICATE_FILE_FOR_USER,
                             NEW_FILE, NO_PERMISSION, INVALID_PATH, LOGIN, CREDENTIALS, USER_NOT_FOUND, AUTH_FAILED,
                             CREATE_ACCOUNT, DUPLICATE_ACCOUNT, NEW_USER, GET_FILE, FILE_DOES_NOT_EXIST, CORRUPTED_FILE,
-                            CREATE_DIR, DUPLICATE_DIR_NAME, NEW_DIR, DELETE_FILE, REMOVE_FILE)
+                            CREATE_DIR, DUPLICATE_DIR_NAME, NEW_DIR, DELETE_FILE, REMOVE_FILE, ADD_DIR_PERM,
+                            INVALID_USERNAME)
 from session.exceptions import PeerTimeOutException
 from session.sessions import EncryptedSession
 from singleton.singleton import Singleton
@@ -104,6 +105,39 @@ class ClientThread(Thread):
             self.create_directory(message)
         elif command == DELETE_FILE.split(MESSAGE_SEPARATOR)[0]:
             self.delete_file(message)
+        elif command == ADD_DIR_PERM.split(MESSAGE_SEPARATOR)[0]:
+            self.add_directory_permission(message)
+
+    def add_directory_permission(self, message):
+        meta_data = dict(parse.parse(ADD_DIR_PERM, message).named)
+        owner_username = meta_data.get("owner_username")
+        permission_username = meta_data.get("perm_username")
+        lst = meta_data.get("path").split("/")
+        path_owner = lst[0]
+        dir_path = "/".join(lst[1:])
+
+        directory = Directory.find_path_directory(
+            main_dir=Directory.fetch_user_main_directory(username=path_owner, db=self.db_connection), path=dir_path)
+
+        if directory is None:
+            self.session.transfer_data(INVALID_PATH)
+            self.session.close()
+            return
+
+        if directory.get_user_permission(owner_username) != Permission.OWNER:
+            self.session.transfer_data(NO_PERMISSION)
+            self.session.close()
+            return
+
+        user = User.fetch_by_username(username=permission_username, db=self.db_connection)
+        if user is None:
+            self.session.transfer_data(INVALID_USERNAME)
+            self.session.close()
+            return
+
+        Permission(db=self.db_connection, user_id=user.id, directory_id=directory.id).save()
+        self.session.transfer_data(ACCEPT)
+        self.session.close()
 
     def delete_file(self, message):
         meta_data = dict(parse.parse(DELETE_FILE, message).named)

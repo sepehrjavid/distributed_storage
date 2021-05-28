@@ -5,10 +5,11 @@ from meta_data.models.user import User
 
 
 class Permission:
-    READ_ONLY = "r_"
-    WRITE_ONLY = "_w"
-    READ_WRITE = "rw"
-    ALLOWED_PERMISSIONS = [READ_ONLY, WRITE_ONLY, READ_WRITE]
+    READ_ONLY = "_r_"
+    WRITE_ONLY = "__w"
+    READ_WRITE = "_rw"
+    OWNER = "o__"
+    ALLOWED_PERMISSIONS = [READ_ONLY, WRITE_ONLY, READ_WRITE, OWNER]
 
     def __init__(self, db: MetaDatabase, **kwargs):
         self.db = db
