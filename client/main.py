@@ -11,7 +11,8 @@ class Main:
     RETRIEVE_FILE = "3"
     NEW_DIR = "4"
     GRANT_DIR_PERM = "5"
-    EXIT_COMMAND = "6"
+    GRANT_FILE_PERM = "6"
+    EXIT_COMMAND = "7"
 
     def __init__(self, ip_address):
         self.ip_address = ip_address
@@ -39,7 +40,8 @@ class Main:
             3.Retrieve file
             4.New directory
             5.Grant directory permission
-            6.Exit""")
+            6.Grant file permission
+            7.Exit""")
 
             if command == self.SEND_FILE:
                 self.client_actions.send_file()
@@ -51,6 +53,8 @@ class Main:
                 self.client_actions.create_new_dir()
             elif command == self.GRANT_DIR_PERM:
                 self.client_actions.grant_directory_permission()
+            elif command == self.GRANT_FILE_PERM:
+                self.client_actions.grant_file_permission()
             elif command == self.EXIT_COMMAND:
                 break
 
