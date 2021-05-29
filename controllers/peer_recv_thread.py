@@ -57,9 +57,50 @@ class PeerRecvThread(Thread):
             self.delete_file(message)
         elif command == NEW_DIR_PERMISSION.split(MESSAGE_SEPARATOR)[0]:
             self.add_directory_permission(message)
+        elif command == NEW_FILE_PERMISSION.split(MESSAGE_SEPARATOR)[0]:
+            self.add_file_permission(message)
         elif message == STOP_FRIENDSHIP:
             self.session.close()
             self.continues = False
+
+    def add_file_permission(self, message):
+        meta_data = dict(parse.parse(NEW_FILE_PERMISSION, message).named)
+        signature = meta_data.get("signature")
+
+        if self.controller.ip_address not in signature.split('-'):
+            self.controller.inform_next_node(NEW_FILE_PERMISSION.format(
+                username=meta_data.get("username"),
+                path=meta_data.get("path"),
+                perm=meta_data.get("perm"),
+                signature=f"{signature}-{self.controller.ip_address}"
+            ))
+
+            logical_path = meta_data.get("path")
+            lst = logical_path.split("/")
+            path_owner = lst[0]
+            dir_path = "/".join(lst[1:-1])
+
+            if "." in lst[-1]:
+                file_name = lst[-1].split(".")[0]
+                extension = lst[-1].split(".")[1]
+            else:
+                file_name = lst[-1].split(".")[0]
+                extension = None
+
+            directory = Directory.find_path_directory(
+                main_dir=Directory.fetch_user_main_directory(username=path_owner, db=self.db), path=dir_path)
+
+            file = list(filter(lambda x: x.title == file_name and x.extension == extension, directory.files))[0]
+            permission = Permission.fetch_by_username_file_id(username=meta_data.get("username"),
+                                                              file_id=file.id,
+                                                              db=self.db)
+
+            if permission is None:
+                user = User.fetch_by_username(username=meta_data.get("username"), db=self.db)
+                Permission(db=self.db, file_id=file.id, user_id=user.id, perm=meta_data.get("perm")).save()
+            else:
+                permission.perm = meta_data.get("perm")
+                permission.save()
 
     def add_directory_permission(self, message):
         meta_data = dict(parse.parse(NEW_DIR_PERMISSION, message).named)
@@ -81,11 +122,11 @@ class PeerRecvThread(Thread):
                 main_dir=Directory.fetch_user_main_directory(username=path_owner, db=self.db), path=dir_path)
 
             permission = Permission.fetch_by_username_directory_id(username=meta_data.get("username"),
-                                                                   directory_id=1,
+                                                                   directory_id=directory.id,
                                                                    db=self.db)
             if permission is None:
                 user = User.fetch_by_username(username=meta_data.get("username"), db=self.db)
-                Permission(db=self.db, directory_id=1, user_id=user.id, perm=meta_data.get("perm")).save()
+                Permission(db=self.db, directory_id=directory.id, user_id=user.id, perm=meta_data.get("perm")).save()
             else:
                 permission.perm = meta_data.get("perm")
                 permission.save()
