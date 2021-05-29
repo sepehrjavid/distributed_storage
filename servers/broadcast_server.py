@@ -15,7 +15,8 @@ from valid_messages import (CREATE_FILE, MESSAGE_SEPARATOR, OUT_OF_SPACE, ACCEPT
                             NEW_FILE, NO_PERMISSION, INVALID_PATH, LOGIN, CREDENTIALS, USER_NOT_FOUND, AUTH_FAILED,
                             CREATE_ACCOUNT, DUPLICATE_ACCOUNT, NEW_USER, GET_FILE, FILE_DOES_NOT_EXIST, CORRUPTED_FILE,
                             CREATE_DIR, DUPLICATE_DIR_NAME, NEW_DIR, DELETE_FILE, REMOVE_FILE, ADD_DIR_PERM,
-                            INVALID_USERNAME, INVALID_PERMISSION_VALUE)
+                            INVALID_USERNAME, INVALID_PERMISSION_VALUE, ADD_FILE_PERM, NEW_DIR_PERMISSION,
+                            NEW_FILE_PERMISSION)
 from session.exceptions import PeerTimeOutException
 from session.sessions import EncryptedSession
 from singleton.singleton import Singleton
@@ -107,6 +108,66 @@ class ClientThread(Thread):
             self.delete_file(message)
         elif command == ADD_DIR_PERM.split(MESSAGE_SEPARATOR)[0]:
             self.add_directory_permission(message)
+        elif command == ADD_FILE_PERM.split(MESSAGE_SEPARATOR)[0]:
+            self.add_file_permission(message)
+
+    def add_file_permission(self, message):
+        meta_data = dict(parse.parse(DELETE_FILE, message).named)
+        username = meta_data.get("owner_username")
+        permission_username = meta_data.get("perm_username")
+        permission = meta_data.get("perm")
+        lst = meta_data.get("path").split("/")
+        path_owner = lst[0]
+        dir_path = "/".join(lst[1:-1])
+
+        if "." in lst[-1]:
+            file_name = lst[-1].split(".")[0]
+            extension = lst[-1].split(".")[1]
+        else:
+            file_name = lst[-1].split(".")[0]
+            extension = None
+
+        if permission not in Permission.ALLOWED_PERMISSIONS:
+            self.session.transfer_data(INVALID_PERMISSION_VALUE)
+            self.session.close()
+            return
+
+        directory = Directory.find_path_directory(
+            main_dir=Directory.fetch_user_main_directory(username=path_owner, db=self.db_connection), path=dir_path)
+
+        if directory is None:
+            self.session.transfer_data(INVALID_PATH)
+            self.session.close()
+            return
+
+        files = directory.files
+        possible_file = list(filter(lambda x: x.title == file_name and x.extension == extension, files))
+        if len(possible_file) == 0:
+            self.session.transfer_data(FILE_DOES_NOT_EXIST)
+            self.session.close()
+            return
+
+        file = possible_file[0]
+        if file.get_user_permission(username) != Permission.OWNER:
+            self.session.transfer_data(NO_PERMISSION)
+            self.session.close()
+            return
+
+        user = User.fetch_by_username(username=permission_username, db=self.db_connection)
+        if user is None:
+            self.session.transfer_data(INVALID_USERNAME)
+            self.session.close()
+            return
+
+        Permission(db=self.db_connection, user_id=user.id, file_id=file.id, perm=permission).save()
+        self.session.transfer_data(ACCEPT)
+        self.session.close()
+        self.storage.controller.inform_modification(NEW_FILE_PERMISSION.format(
+            username=permission_username,
+            path=meta_data.get("path"),
+            perm=permission,
+            signature=self.ip_address
+        ))
 
     def add_directory_permission(self, message):
         meta_data = dict(parse.parse(ADD_DIR_PERM, message).named)
@@ -144,6 +205,12 @@ class ClientThread(Thread):
         Permission(db=self.db_connection, user_id=user.id, directory_id=directory.id, perm=permission).save()
         self.session.transfer_data(ACCEPT)
         self.session.close()
+        self.storage.controller.inform_modification(NEW_DIR_PERMISSION.format(
+            username=permission_username,
+            path=meta_data.get("path"),
+            perm=permission,
+            signature=self.ip_address
+        ))
 
     def delete_file(self, message):
         meta_data = dict(parse.parse(DELETE_FILE, message).named)
