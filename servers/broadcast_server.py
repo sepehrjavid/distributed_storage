@@ -88,7 +88,7 @@ class ClientThread(Thread):
         try:
             self.session = EncryptedSession(ip_address=self.client_data.get("ip_address"),
                                             port_number=BroadcastServer.CLIENT_PORT_NUMBER)
-        except PeerTimeOutException or ConnectionResetError:
+        except (PeerTimeOutException, ConnectionResetError):
             return
 
         message = self.client_data.get("command")
