@@ -44,7 +44,7 @@ class Directory:
 
     @property
     def children(self):
-        result = self.db.execute("SELECT * FROM directory WHERE parent_directory_id=?;", self.id)
+        result = self.db.fetch("SELECT * FROM directory WHERE parent_directory_id=?;", self.id)
 
         directories = []
         for data in result:
