@@ -46,3 +46,15 @@ class Permission:
     @property
     def user(self):
         return User.fetch_by_id(self.user_id, self.db)
+
+    @staticmethod
+    def fetch_by_username_directory_id(username, directory_id, db: MetaDatabase):
+        result = db.fetch("""SELECT permission.* FROM permission INNER JOIN users u ON permission.user_id = u.id 
+        WHERE directory_id=? AND username=?;""", directory_id, username)
+
+        if len(result) == 0:
+            return None
+
+        data = result[0]
+        print(data)
+        return Permission(db=db, id=data[0], perm=data[1], file_id=data[2], directory_id=data[3], user_id=data[4])

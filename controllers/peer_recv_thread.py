@@ -13,7 +13,8 @@ from meta_data.models.user import User
 from storage.storage import Storage
 from valid_messages import (CONFIRM_HANDSHAKE, STOP_FRIENDSHIP, RESPOND_TO_INTRODUCTION, ACCEPT, INTRODUCE_PEER,
                             MESSAGE_SEPARATOR, SEND_DB, UPDATE_DATA_NODE, UNBLOCK_QUEUEING, START_CLIENT_SERVER,
-                            NEW_USER, NEW_FILE, NEW_CHUNK, NEW_DIR, REMOVE_FILE)
+                            NEW_USER, NEW_FILE, NEW_CHUNK, NEW_DIR, REMOVE_FILE, NEW_FILE_PERMISSION,
+                            NEW_DIR_PERMISSION)
 from session.exceptions import PeerTimeOutException
 from session.sessions import SimpleSession, FileSession, EncryptedSession
 
@@ -54,9 +55,40 @@ class PeerRecvThread(Thread):
             self.create_dir(message)
         elif command == REMOVE_FILE.split(MESSAGE_SEPARATOR)[0]:
             self.delete_file(message)
+        elif command == NEW_DIR_PERMISSION.split(MESSAGE_SEPARATOR)[0]:
+            self.add_directory_permission(message)
         elif message == STOP_FRIENDSHIP:
             self.session.close()
             self.continues = False
+
+    def add_directory_permission(self, message):
+        meta_data = dict(parse.parse(NEW_DIR_PERMISSION, message).named)
+        signature = meta_data.get("signature")
+
+        if self.controller.ip_address not in signature.split('-'):
+            self.controller.inform_next_node(NEW_DIR_PERMISSION.format(
+                username=meta_data.get("username"),
+                path=meta_data.get("path"),
+                perm=meta_data.get("perm"),
+                signature=f"{signature}-{self.controller.ip_address}"
+            ))
+
+            lst = meta_data.get("path").split("/")
+            path_owner = lst[0]
+            dir_path = "/".join(lst[1:])
+
+            directory = Directory.find_path_directory(
+                main_dir=Directory.fetch_user_main_directory(username=path_owner, db=self.db), path=dir_path)
+
+            permission = Permission.fetch_by_username_directory_id(username=meta_data.get("username"),
+                                                                   directory_id=1,
+                                                                   db=self.db)
+            if permission is None:
+                user = User.fetch_by_username(username=meta_data.get("username"), db=self.db)
+                Permission(db=self.db, directory_id=1, user_id=user.id, perm=meta_data.get("perm")).save()
+            else:
+                permission.perm = meta_data.get("perm")
+                permission.save()
 
     def delete_file(self, message):
         meta_data = dict(parse.parse(REMOVE_FILE, message).named)
