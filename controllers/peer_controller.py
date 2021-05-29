@@ -3,6 +3,8 @@ import socket
 from multiprocessing import Process
 from multiprocessing.connection import Connection
 
+from storage.storage import Storage
+
 try:
     from _queue import Empty
 except ImportError:
@@ -43,9 +45,14 @@ class PeerController(Process, metaclass=Singleton):
         self.network_id = self.config.get("network_id")
         self.rack_number = self.config.get("rack_number")
         self.available_byte_size = self.config.get("available_byte_size")
+        self.storage_base_path = self.config.get("path")
         self.broadcast_address = str(ipaddress.ip_network(self.network_id).broadcast_address)
         self.peer_transmitter = SimpleTransmitter(broadcast_address=self.broadcast_address,
                                                   port_number=PeerBroadcastServer.PORT_NUMBER)
+        self.storage = Storage(storage_path=self.storage_base_path,
+                               current_data_node=DataNode.fetch_by_ip(ip_address=self.ip_address,
+                                                                      db=self.db_connection),
+                               controller=None)
 
         self.client_controller_pipe = client_controller_pipe
         self.peers = []

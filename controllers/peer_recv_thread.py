@@ -157,9 +157,8 @@ class PeerRecvThread(Thread):
                 main_dir=Directory.fetch_user_main_directory(username=path_owner, db=self.db), path=dir_path)
 
             file = list(filter(lambda x: x.title == file_name and x.extension == extension, directory.files))[0]
-            storage = Storage()
             for chunk in file.chunks:
-                storage.remove_chunk_file(chunk.local_path)
+                self.controller.storage.remove_chunk_file(chunk.local_path)
             file.delete()
 
     def create_dir(self, message):
