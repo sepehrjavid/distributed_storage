@@ -159,9 +159,17 @@ class ClientThread(Thread):
             self.session.close()
             return
 
-        Permission(db=self.db_connection, user_id=user.id, file_id=file.id, perm=permission).save()
+        permission_instance = Permission.fetch_by_username_file_id(username=permission_username, file_id=file.id,
+                                                                   db=self.db_connection)
+        if permission_instance is None:
+            Permission(db=self.db_connection, user_id=user.id, file_id=file.id, perm=permission).save()
+        else:
+            permission_instance.perm = permission
+            permission_instance.save()
+
         self.session.transfer_data(ACCEPT)
         self.session.close()
+
         self.storage.controller.inform_modification(NEW_FILE_PERMISSION.format(
             username=permission_username,
             path=meta_data.get("path"),
@@ -202,9 +210,18 @@ class ClientThread(Thread):
             self.session.close()
             return
 
-        Permission(db=self.db_connection, user_id=user.id, directory_id=directory.id, perm=permission).save()
+        permission_instance = Permission.fetch_by_username_directory_id(username=permission_username,
+                                                                        directory_id=directory.id,
+                                                                        db=self.db_connection)
+        if permission_instance is None:
+            Permission(db=self.db_connection, user_id=user.id, directory_id=directory.id, perm=permission).save()
+        else:
+            permission_instance.perm = permission
+            permission_instance.save()
+
         self.session.transfer_data(ACCEPT)
         self.session.close()
+
         self.storage.controller.inform_modification(NEW_DIR_PERMISSION.format(
             username=permission_username,
             path=meta_data.get("path"),
