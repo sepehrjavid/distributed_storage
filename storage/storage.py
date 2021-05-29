@@ -18,9 +18,10 @@ class Storage(metaclass=Singleton):
         self.storage_path = storage_path
         self.db = MetaDatabase()
         self.controller = controller
+
         if isinstance(current_data_node, DataNode) and DataNode.fetch_by_id(current_data_node.id, self.db) is not None:
             self.current_data_node = current_data_node
-        else:
+        elif current_data_node is not None:
             raise DataNodeNotSaved
 
     def is_valid_path(self, path):
