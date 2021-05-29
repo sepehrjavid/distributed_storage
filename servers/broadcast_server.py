@@ -310,7 +310,7 @@ class ClientThread(Thread):
         new_dir = Directory(db=self.db_connection, title=new_dir_name, parent_directory_id=directory.id)
         new_dir.save()
         Permission(db=self.db_connection, perm=Permission.OWNER, directory_id=new_dir.id,
-                   user_id=User.fetch_by_username(username=username).id).save()
+                   user_id=User.fetch_by_username(username=username, db=self.db_connection).id).save()
 
         self.storage.controller.inform_modification(NEW_DIR.format(path=meta_data.get("path"), username=username,
                                                                    signature=self.ip_address))
