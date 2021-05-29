@@ -112,7 +112,7 @@ class ClientThread(Thread):
             return
 
         file = list(filter(lambda x: x.title == file_name and x.extension == extension, directory.files))[0]
-        if file.get_user_permission(username) not in [Permission.READ_WRITE, Permission.READ_ONLY]:
+        if file.get_user_permission(username) not in [Permission.READ_WRITE, Permission.READ_ONLY, Permission.OWNER]:
             self.session.transfer_data(NO_PERMISSION)
             self.session.close()
             return
@@ -157,7 +157,8 @@ class ClientThread(Thread):
             self.session.close()
             return
 
-        if requested_dir.get_user_permission(username) not in [Permission.WRITE_ONLY, Permission.READ_WRITE]:
+        if requested_dir.get_user_permission(username) not in [Permission.WRITE_ONLY, Permission.READ_WRITE,
+                                                               Permission.OWNER]:
             self.session.transfer_data(NO_PERMISSION)
             self.session.close()
             return

@@ -41,7 +41,7 @@ class Main:
             4.New directory
             5.Grant directory permission
             6.Grant file permission
-            7.Exit""")
+            7.Exit\n""")
 
             if command == self.SEND_FILE:
                 self.client_actions.send_file()
@@ -60,5 +60,5 @@ class Main:
 
 
 if __name__ == "__main__":
-    program = Main("192.168.1.13")
+    program = Main("192.168.1.11")
     program.run()
