@@ -51,7 +51,7 @@ class PeerController(Process, metaclass=Singleton):
                                                   port_number=PeerBroadcastServer.PORT_NUMBER)
         self.storage = Storage(storage_path=self.storage_base_path,
                                current_data_node=DataNode.fetch_by_ip(ip_address=self.ip_address,
-                                                                      db=self.db_connection),
+                                                                      db=MetaDatabase()),
                                controller=None)
 
         self.client_controller_pipe = client_controller_pipe
