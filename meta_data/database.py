@@ -7,6 +7,7 @@ class MetaDatabase:
     def __init__(self):
         self.connection = sqlite3.connect(MetaDatabase.DATABASE_PATH)
         self.cursor = self.connection.cursor()
+        self.cursor.execute("PRAGMA foreign_keys = ON")
 
     @staticmethod
     def initialize_tables():
@@ -14,13 +15,13 @@ class MetaDatabase:
         cursor = connection.cursor()
 
         cursor.execute("""CREATE TABLE IF NOT EXISTS users (
-                                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                                    id INTEGER PRIMARY KEY AUTOINCREMENT,
                                     username VARCHAR(100) NOT NULL UNIQUE,
                                     password VARCHAR(100) NOT NULL 
                                         );""")
 
         cursor.execute("""CREATE TABLE IF NOT EXISTS directory (
-                                                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                                                    id INTEGER PRIMARY KEY AUTOINCREMENT,
                                                     title VARCHAR(200) NOT NULL,
                                                     parent_directory_id INTEGER,
                                                     FOREIGN KEY (parent_directory_id) REFERENCES directory (id) 
@@ -28,7 +29,7 @@ class MetaDatabase:
                                                         );""")
 
         cursor.execute("""CREATE TABLE IF NOT EXISTS file (
-                                            id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                                            id INTEGER PRIMARY KEY AUTOINCREMENT,
                                             title VARCHAR(200) NOT NULL,
                                             extension VARCHAR(10),
                                             is_complete INTEGER NOT NULL DEFAULT 0,
@@ -38,7 +39,7 @@ class MetaDatabase:
                                                 );""")
 
         cursor.execute("""CREATE TABLE IF NOT EXISTS permission (
-                                            id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                                            id INTEGER PRIMARY KEY AUTOINCREMENT,
                                             perm VARCHAR(2) NOT NULL,
                                             file_id INTEGER,
                                             directory_id INTEGER,
@@ -51,7 +52,7 @@ class MetaDatabase:
                                                 );""")
 
         cursor.execute("""CREATE TABLE IF NOT EXISTS data_node (
-                            id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
                             ip_address VARCHAR(15) NOT NULL UNIQUE,
                             rack_number INTEGER NOT NULL,
                             available_byte_size INTEGER NOT NULL,
@@ -59,7 +60,7 @@ class MetaDatabase:
                                 );""")
 
         cursor.execute("""CREATE TABLE IF NOT EXISTS chunk (
-                            id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
                             sequence INTEGER NOT NULL,
                             local_path VARCHAR(500) NOT NULL,
                             chunk_size INTEGER NOT NULL,
