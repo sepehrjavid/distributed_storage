@@ -33,6 +33,7 @@ class ClientController(Process, metaclass=Singleton):
         self.data_node_server = None
         self.broadcast_server = None
         self.data_node_server_thread = None
+        self.peer_controller_message_handler_thread = None
 
     def update_config_file(self):
         with open(PeerController.CONFIG_FILE_PATH, "r") as config_file:
@@ -59,6 +60,8 @@ class ClientController(Process, metaclass=Singleton):
         self.broadcast_server = BroadcastServer(broadcast_address=self.broadcast_address, storage=self.storage)
         self.data_node_server_thread = Thread(target=self.data_node_server.run, args=[])
         self.data_node_server_thread.start()
+        self.peer_controller_message_handler_thread = Thread(target=self.peer_controller_message_handler, args=[])
+        self.peer_controller_message_handler_thread.start()
         print("data node server started")
         self.broadcast_server.start()
 
