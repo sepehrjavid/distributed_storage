@@ -10,7 +10,6 @@ from meta_data.models.directory import Directory
 from meta_data.models.file import File
 from meta_data.models.permission import Permission
 from meta_data.models.user import User
-from storage.storage import Storage
 from valid_messages import (CONFIRM_HANDSHAKE, STOP_FRIENDSHIP, RESPOND_TO_INTRODUCTION, ACCEPT, INTRODUCE_PEER,
                             MESSAGE_SEPARATOR, SEND_DB, UPDATE_DATA_NODE, UNBLOCK_QUEUEING, START_CLIENT_SERVER,
                             NEW_USER, NEW_FILE, NEW_CHUNK, NEW_DIR, REMOVE_FILE, NEW_FILE_PERMISSION,
@@ -184,7 +183,7 @@ class PeerRecvThread(Thread):
 
             new_dir = Directory(db=self.db, title=new_dir_name, parent_directory_id=directory.id)
             new_dir.save()
-            Permission(db=self.db, perm=Permission.READ_WRITE, directory_id=new_dir.id,
+            Permission(db=self.db, perm=Permission.OWNER, directory_id=new_dir.id,
                        user_id=User.fetch_by_username(username=username, db=self.db).id).save()
 
     def create_chunk(self, message):
@@ -232,7 +231,7 @@ class PeerRecvThread(Thread):
                 main_directory = Directory(db=self.db, title=Directory.MAIN_DIR_NAME, parent_directory_id=None)
                 main_directory.save()
                 permission = Permission(db=self.db, directory_id=main_directory.id, user_id=user.id,
-                                        perm=Permission.READ_WRITE)
+                                        perm=Permission.OWNER)
                 permission.save()
             else:
                 user.password = password
@@ -265,7 +264,7 @@ class PeerRecvThread(Thread):
                             sequence_num=meta_data.get("sequence_num"), directory_id=requested_dir.id,
                             is_complete=False)
                 file.save()
-                Permission(db=self.db, perm=Permission.READ_WRITE, file_id=file.id, user_id=user.id).save()
+                Permission(db=self.db, perm=Permission.OWNER, file_id=file.id, user_id=user.id).save()
             else:
                 file.title = meta_data.get("title")
                 file.save()
