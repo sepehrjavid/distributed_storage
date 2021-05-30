@@ -4,6 +4,8 @@ from multiprocessing.connection import Connection
 from threading import Thread
 from time import sleep
 
+import parse
+
 from controllers.peer_controller import PeerController
 from meta_data.database import MetaDatabase
 from meta_data.models.data_node import DataNode
@@ -75,5 +77,6 @@ class ClientController(Process, metaclass=Singleton):
                 msg = self.peer_controller_pipe.recv()
                 command = msg.split(MESSAGE_SEPARATOR)[0]
                 if command == DELETE_CHUNK.split(MESSAGE_SEPARATOR)[0]:
-                    self.storage.remove_chunk_file(path=DELETE_CHUNK.split(MESSAGE_SEPARATOR)[1], db=db)
+                    meta_data = dict(parse.parse(DELETE_CHUNK, msg).named)
+                    self.storage.remove_chunk_file(path=meta_data.get("path"), db=db)
             sleep(5)
