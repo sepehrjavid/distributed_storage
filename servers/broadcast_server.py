@@ -112,7 +112,7 @@ class ClientThread(Thread):
             self.add_file_permission(message)
 
     def add_file_permission(self, message):
-        meta_data = dict(parse.parse(DELETE_FILE, message).named)
+        meta_data = dict(parse.parse(ADD_FILE_PERM, message).named)
         username = meta_data.get("owner_username")
         permission_username = meta_data.get("perm_username")
         permission = meta_data.get("perm")
