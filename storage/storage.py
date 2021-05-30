@@ -5,7 +5,7 @@ import uuid
 
 from singleton.singleton import Singleton
 from storage.exceptions import DataNodeNotSaved, NotEnoughSpace
-from valid_messages import UPDATE_DATA_NODE
+from valid_messages import UPDATE_DATA_NODE, MESSAGE_SEPARATOR
 
 
 class Storage(metaclass=Singleton):
@@ -56,9 +56,9 @@ class Storage(metaclass=Singleton):
         return assigned_nodes
 
     def get_new_file_path(self):
-        filepath = self.storage_path + str(uuid.uuid4())
+        filepath = self.storage_path + str(uuid.uuid4()).replace(MESSAGE_SEPARATOR, "_")
         while os.path.isfile(filepath):
-            filepath = self.storage_path + str(uuid.uuid4())
+            filepath = self.storage_path + str(uuid.uuid4()).replace(MESSAGE_SEPARATOR, "_")
 
         return filepath
 
