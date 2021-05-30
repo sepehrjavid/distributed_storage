@@ -3,8 +3,6 @@ import socket
 from multiprocessing import Process
 from multiprocessing.connection import Connection
 
-from storage.storage import Storage
-
 try:
     from _queue import Empty
 except ImportError:
@@ -45,7 +43,6 @@ class PeerController(Process, metaclass=Singleton):
         self.network_id = self.config.get("network_id")
         self.rack_number = self.config.get("rack_number")
         self.available_byte_size = self.config.get("available_byte_size")
-        self.storage_base_path = self.config.get("path")
         self.broadcast_address = str(ipaddress.ip_network(self.network_id).broadcast_address)
         self.peer_transmitter = SimpleTransmitter(broadcast_address=self.broadcast_address,
                                                   port_number=PeerBroadcastServer.PORT_NUMBER)
@@ -221,7 +218,6 @@ class PeerController(Process, metaclass=Singleton):
     # noinspection PyAttributeOutsideInit
     def run(self):
         self.db_connection = MetaDatabase()
-        self.storage = Storage(storage_path=self.storage_base_path, current_data_node=None, controller=None)
         self.activity_lock = Event()
         self.activity_lock.set()
         self.storage_communicator_thread = Thread(target=self.handle_storage_process_messages,

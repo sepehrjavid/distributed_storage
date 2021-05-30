@@ -13,7 +13,7 @@ from meta_data.models.user import User
 from valid_messages import (CONFIRM_HANDSHAKE, STOP_FRIENDSHIP, RESPOND_TO_INTRODUCTION, ACCEPT, INTRODUCE_PEER,
                             MESSAGE_SEPARATOR, SEND_DB, UPDATE_DATA_NODE, UNBLOCK_QUEUEING, START_CLIENT_SERVER,
                             NEW_USER, NEW_FILE, NEW_CHUNK, NEW_DIR, REMOVE_FILE, NEW_FILE_PERMISSION,
-                            NEW_DIR_PERMISSION)
+                            NEW_DIR_PERMISSION, DELETE_CHUNK)
 from session.exceptions import PeerTimeOutException
 from session.sessions import SimpleSession, FileSession, EncryptedSession
 
@@ -157,7 +157,7 @@ class PeerRecvThread(Thread):
 
             file = list(filter(lambda x: x.title == file_name and x.extension == extension, directory.files))[0]
             for chunk in file.chunks:
-                self.controller.storage.remove_chunk_file(chunk.local_path, db=self.db)
+                self.controller.client_controller_pipe.send(DELETE_CHUNK.format(path=chunk.local_path))
             file.delete()
 
     def create_dir(self, message):

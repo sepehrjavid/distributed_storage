@@ -11,7 +11,7 @@ from servers.broadcast_server import BroadcastServer
 from servers.data_node_server import DataNodeServer
 from singleton.singleton import Singleton
 from storage.storage import Storage
-from valid_messages import START_CLIENT_SERVER
+from valid_messages import START_CLIENT_SERVER, DELETE_CHUNK, MESSAGE_SEPARATOR
 
 
 class ClientController(Process, metaclass=Singleton):
@@ -64,3 +64,13 @@ class ClientController(Process, metaclass=Singleton):
 
     def inform_modification(self, message):
         self.peer_controller_pipe.send(message)
+
+    def peer_controller_message_handler(self):
+        db = MetaDatabase()
+        while True:
+            if self.peer_controller_pipe.poll():
+                msg = self.peer_controller_pipe.recv()
+                command = msg.split(MESSAGE_SEPARATOR)[0]
+                if command == DELETE_CHUNK.split(MESSAGE_SEPARATOR)[0]:
+                    self.storage.remove_chunk_file(path=DELETE_CHUNK.split(MESSAGE_SEPARATOR)[1], db=db)
+            sleep(5)

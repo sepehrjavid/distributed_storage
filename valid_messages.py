@@ -75,3 +75,4 @@ Inter-Process Communication
 """
 
 START_CLIENT_SERVER = "start"
+DELETE_CHUNK = "delc-{path}"
