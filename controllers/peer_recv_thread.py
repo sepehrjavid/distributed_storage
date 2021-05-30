@@ -185,7 +185,7 @@ class PeerRecvThread(Thread):
             new_dir = Directory(db=self.db, title=new_dir_name, parent_directory_id=directory.id)
             new_dir.save()
             Permission(db=self.db, perm=Permission.READ_WRITE, directory_id=new_dir.id,
-                       user_id=User.fetch_by_username(username=username).id).save()
+                       user_id=User.fetch_by_username(username=username, db=self.db).id).save()
 
     def create_chunk(self, message):
         meta_data = dict(parse.parse(NEW_CHUNK, message).named)
