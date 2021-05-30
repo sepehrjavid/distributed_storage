@@ -77,9 +77,11 @@ class Storage(metaclass=Singleton):
                                     signature=self.current_data_node.ip_address
                                     ))
 
-    def remove_chunk_file(self, path):
+    def remove_chunk_file(self, path, db: MetaDatabase):
         if self.is_valid_path(path):
+            chunk_size = os.path.getsize(path)
             os.remove(path)
+            self.update_byte_size(chunk_size, db)
 
     def get_replication_data_nodes(self, chunk_size):
         all_data_nodes = DataNode.fetch_all()

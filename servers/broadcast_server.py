@@ -267,7 +267,7 @@ class ClientThread(Thread):
             return
 
         for chunk in file.chunks:
-            self.storage.remove_chunk_file(chunk.local_path)
+            self.storage.remove_chunk_file(chunk.local_path, db=self.db_connection)
         file.delete()
         self.session.transfer_data(ACCEPT)
         self.session.close()
