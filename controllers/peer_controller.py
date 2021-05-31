@@ -134,9 +134,16 @@ class PeerController(Process, metaclass=Singleton):
         data_node.save()
 
         if len(self.peers) > 1:
+            data_node_count = len(DataNode.fetch_all(db=self.db_connection)) - 3
+            if data_node_count % 2 == 0:
+                max_hop = data_node_count / 2
+            else:
+                max_hop = (data_node_count // 2) + 1
+
             self.peers[1].session.transfer_data(
                 UPDATE_DATA_NODE.format(ip_address=data_node.ip_address, rack_number=data_node.rack_number,
-                                        available_byte_size=data_node.available_byte_size, signature=self.ip_address))
+                                        available_byte_size=data_node.available_byte_size,
+                                        signature=self.ip_address) + MESSAGE_SEPARATOR + str(max_hop))
             lost_peer = self.peers.pop(0)
             lost_peer.join()
 
@@ -159,7 +166,7 @@ class PeerController(Process, metaclass=Singleton):
             if len(signature_ips) < max_hop:
                 for peer in self.peers:
                     if peer.session.ip_address not in signature_ips:
-                        peer.session.transfer_data(message + MESSAGE_SEPARATOR + max_hop)
+                        peer.session.transfer_data(message + MESSAGE_SEPARATOR + str(max_hop))
 
     def join_network(self) -> list:
         confirmation_message = CONFIRM_HANDSHAKE.format(available_byte_size=self.available_byte_size,
