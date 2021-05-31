@@ -13,7 +13,7 @@ from meta_data.models.user import User
 from valid_messages import (CONFIRM_HANDSHAKE, STOP_FRIENDSHIP, RESPOND_TO_INTRODUCTION, ACCEPT, INTRODUCE_PEER,
                             MESSAGE_SEPARATOR, SEND_DB, UPDATE_DATA_NODE, UNBLOCK_QUEUEING, START_CLIENT_SERVER,
                             NEW_USER, NEW_FILE, NEW_CHUNK, NEW_DIR, REMOVE_FILE, NEW_FILE_PERMISSION,
-                            NEW_DIR_PERMISSION, DELETE_CHUNK)
+                            NEW_DIR_PERMISSION, DELETE_CHUNK, REMOVE_DATA_NODE)
 from session.exceptions import PeerTimeOutException
 from session.sessions import SimpleSession, FileSession, EncryptedSession
 
@@ -58,9 +58,26 @@ class PeerRecvThread(Thread):
             self.add_directory_permission(message)
         elif command == NEW_FILE_PERMISSION.split(MESSAGE_SEPARATOR)[0]:
             self.add_file_permission(message)
+        elif command == REMOVE_DATA_NODE.split(MESSAGE_SEPARATOR)[0]:
+            self.remove_data_node(message)
         elif message == STOP_FRIENDSHIP:
             self.session.close()
             self.continues = False
+
+    def remove_data_node(self, message):
+        meta_data = dict(parse.parse(REMOVE_DATA_NODE, message).named)
+        signature = meta_data.get("signature")
+
+        if self.controller.ip_address not in signature.split('-'):
+            self.controller.inform_next_node(REMOVE_DATA_NODE.format(
+                ip_address=meta_data.get("ip_address"),
+                signature=f"{signature}-{self.controller.ip_address}"
+
+            ))
+            data_node = DataNode.fetch_by_ip(ip_address=meta_data.get("ip_address"), db=self.db)
+
+            if data_node is not None:
+                data_node.delete()
 
     def add_file_permission(self, message):
         meta_data = dict(parse.parse(NEW_FILE_PERMISSION, message).named)
@@ -332,11 +349,17 @@ class PeerRecvThread(Thread):
                                         available_byte_size=data_node.available_byte_size,
                                         signature=self.controller.ip_address))
 
-        print("Thread ", self.controller.peers)
+        print("Thread ", [x.session.ip_address for x in self.controller.peers])
 
     def perform_recovery_actions(self):
+        ip_address = self.session.ip_address
         self.session.close()
         self.db.close()
         self.continues = False
         self.controller.peers.remove(self)
+        data_node = DataNode.fetch_by_ip(ip_address=ip_address, db=self.db)
+        if data_node is not None:
+            data_node.delete()
+        self.controller.inform_next_node(REMOVE_DATA_NODE.format(ip_address=ip_address,
+                                                                 signature=self.controller.ip_address))
         print([x.session.ip_address for x in self.controller.peers])

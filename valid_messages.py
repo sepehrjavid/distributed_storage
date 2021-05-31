@@ -69,6 +69,7 @@ NEW_DIR = "nwdir-{path}-{username}-{signature}"
 REMOVE_FILE = "remfile-{path}-{signature}"
 NEW_FILE_PERMISSION = "nwfperm-{path}-{username}-{perm}-{signature}"
 NEW_DIR_PERMISSION = "nwdperm-{path}-{username}-{perm}-{signature}"
+REMOVE_DATA_NODE = "rmnd-{ip_address}-{signature}"
 
 """
 Inter-Process Communication
