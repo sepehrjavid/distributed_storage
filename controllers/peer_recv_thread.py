@@ -37,15 +37,19 @@ class PeerRecvThread(Thread):
 
     def handle_message(self, message):
         print(message)
-        message_components = message.split(MESSAGE_SEPARATOR)
-        max_hop = int(message_components[-1])
-        message = MESSAGE_SEPARATOR.join(message_components[:-1])
         command = message.split(MESSAGE_SEPARATOR)[0]
         if command == INTRODUCE_PEER.split(MESSAGE_SEPARATOR)[0]:
             self.add_peer(message)
+            return
         elif message == SEND_DB:
             self.receive_db()
-        elif command == UPDATE_DATA_NODE.split(MESSAGE_SEPARATOR)[0]:
+            return
+
+        message_components = message.split(MESSAGE_SEPARATOR)
+        max_hop = int(message_components[-1])
+        message = MESSAGE_SEPARATOR.join(message_components[:-1])
+
+        if command == UPDATE_DATA_NODE.split(MESSAGE_SEPARATOR)[0]:
             self.update_data_node(message, max_hop)
         elif command == NEW_USER.split(MESSAGE_SEPARATOR)[0]:
             self.create_account(message, max_hop)
