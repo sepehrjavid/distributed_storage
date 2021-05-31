@@ -3,11 +3,6 @@ import socket
 from multiprocessing import Process
 from multiprocessing.connection import Connection
 
-try:
-    from _queue import Empty
-except ImportError:
-    from queue import Empty
-
 from threading import Thread, Event
 from time import monotonic, sleep
 
@@ -139,18 +134,32 @@ class PeerController(Process, metaclass=Singleton):
         data_node.save()
 
         if len(self.peers) > 1:
-            self.inform_next_node(
-                UPDATE_DATA_NODE.encode(ip_address=data_node.ip_address, rack_number=data_node.rack_number,
+            self.peers[1].session.transfer_data(
+                UPDATE_DATA_NODE.format(ip_address=data_node.ip_address, rack_number=data_node.rack_number,
                                         available_byte_size=data_node.available_byte_size, signature=self.ip_address))
             lost_peer = self.peers.pop(0)
+            lost_peer.join()
 
         self.peers.append(thread)
         self.transfer_db(thread.session)
         print([x.session.ip_address for x in self.peers])
 
-    def inform_next_node(self, message):
-        for peer in self.peers:
-            peer.session.transfer_data(message)
+    def inform_next_node(self, message, previous_signature: str = "", max_hop=None):
+        if not previous_signature:
+            data_node_count = len(DataNode.fetch_all(db=self.db_connection)) - 1
+            if data_node_count % 2 == 0:
+                left_hop = right_hop = data_node_count / 2
+            else:
+                left_hop = data_node_count // 2
+                right_hop = (data_node_count // 2) + 1
+            self.peers[0].session.transfer_data(message + MESSAGE_SEPARATOR + str(right_hop))
+            self.peers[1].session.transfer_data(message + MESSAGE_SEPARATOR + str(left_hop))
+        else:
+            signature_ips = previous_signature.split('-')
+            if len(signature_ips) < max_hop:
+                for peer in self.peers:
+                    if peer.session.ip_address not in signature_ips:
+                        peer.session.transfer_data(message + MESSAGE_SEPARATOR + max_hop)
 
     def join_network(self) -> list:
         confirmation_message = CONFIRM_HANDSHAKE.format(available_byte_size=self.available_byte_size,

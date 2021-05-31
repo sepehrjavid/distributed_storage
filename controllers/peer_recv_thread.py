@@ -37,34 +37,37 @@ class PeerRecvThread(Thread):
 
     def handle_message(self, message):
         print(message)
+        message_components = message.split(MESSAGE_SEPARATOR)
+        max_hop = message_components[-1]
+        message = MESSAGE_SEPARATOR.join(message_components[:-1])
         command = message.split(MESSAGE_SEPARATOR)[0]
         if command == INTRODUCE_PEER.split(MESSAGE_SEPARATOR)[0]:
             self.add_peer(message)
         elif message == SEND_DB:
             self.receive_db()
         elif command == UPDATE_DATA_NODE.split(MESSAGE_SEPARATOR)[0]:
-            self.update_data_node(message)
+            self.update_data_node(message, max_hop)
         elif command == NEW_USER.split(MESSAGE_SEPARATOR)[0]:
-            self.create_account(message)
+            self.create_account(message, max_hop)
         elif command == NEW_FILE.split(MESSAGE_SEPARATOR)[0]:
-            self.create_file(message)
+            self.create_file(message, max_hop)
         elif command == NEW_CHUNK.split(MESSAGE_SEPARATOR)[0]:
-            self.create_chunk(message)
+            self.create_chunk(message, max_hop)
         elif command == NEW_DIR.split(MESSAGE_SEPARATOR)[0]:
-            self.create_dir(message)
+            self.create_dir(message, max_hop)
         elif command == REMOVE_FILE.split(MESSAGE_SEPARATOR)[0]:
-            self.delete_file(message)
+            self.delete_file(message, max_hop)
         elif command == NEW_DIR_PERMISSION.split(MESSAGE_SEPARATOR)[0]:
-            self.add_directory_permission(message)
+            self.add_directory_permission(message, max_hop)
         elif command == NEW_FILE_PERMISSION.split(MESSAGE_SEPARATOR)[0]:
-            self.add_file_permission(message)
+            self.add_file_permission(message, max_hop)
         elif command == REMOVE_DATA_NODE.split(MESSAGE_SEPARATOR)[0]:
-            self.remove_data_node(message)
+            self.remove_data_node(message, max_hop)
         elif message == STOP_FRIENDSHIP:
             self.session.close()
             self.continues = False
 
-    def remove_data_node(self, message):
+    def remove_data_node(self, message, max_hop):
         meta_data = dict(parse.parse(REMOVE_DATA_NODE, message).named)
         signature = meta_data.get("signature")
 
@@ -72,14 +75,13 @@ class PeerRecvThread(Thread):
             self.controller.inform_next_node(REMOVE_DATA_NODE.format(
                 ip_address=meta_data.get("ip_address"),
                 signature=f"{signature}-{self.controller.ip_address}"
-
-            ))
+            ), signature, max_hop)
             data_node = DataNode.fetch_by_ip(ip_address=meta_data.get("ip_address"), db=self.db)
 
             if data_node is not None:
                 data_node.delete()
 
-    def add_file_permission(self, message):
+    def add_file_permission(self, message, max_hop):
         meta_data = dict(parse.parse(NEW_FILE_PERMISSION, message).named)
         signature = meta_data.get("signature")
 
@@ -89,7 +91,7 @@ class PeerRecvThread(Thread):
                 path=meta_data.get("path"),
                 perm=meta_data.get("perm"),
                 signature=f"{signature}-{self.controller.ip_address}"
-            ))
+            ), signature, max_hop)
 
             logical_path = meta_data.get("path")
             lst = logical_path.split("/")
@@ -118,7 +120,7 @@ class PeerRecvThread(Thread):
                 permission.perm = meta_data.get("perm")
                 permission.save()
 
-    def add_directory_permission(self, message):
+    def add_directory_permission(self, message, max_hop):
         meta_data = dict(parse.parse(NEW_DIR_PERMISSION, message).named)
         signature = meta_data.get("signature")
 
@@ -128,7 +130,7 @@ class PeerRecvThread(Thread):
                 path=meta_data.get("path"),
                 perm=meta_data.get("perm"),
                 signature=f"{signature}-{self.controller.ip_address}"
-            ))
+            ), signature, max_hop)
 
             lst = meta_data.get("path").split("/")
             path_owner = lst[0]
@@ -147,7 +149,7 @@ class PeerRecvThread(Thread):
                 permission.perm = meta_data.get("perm")
                 permission.save()
 
-    def delete_file(self, message):
+    def delete_file(self, message, max_hop):
         meta_data = dict(parse.parse(REMOVE_FILE, message).named)
         signature = meta_data.get("signature")
 
@@ -155,7 +157,7 @@ class PeerRecvThread(Thread):
             self.controller.inform_next_node(REMOVE_FILE.format(
                 path=meta_data.get("path"),
                 signature=f"{signature}-{self.controller.ip_address}"
-            ))
+            ), signature, max_hop)
 
             logical_path = meta_data.get("path")
             lst = logical_path.split("/")
@@ -177,7 +179,7 @@ class PeerRecvThread(Thread):
                 self.controller.client_controller_pipe.send(DELETE_CHUNK.format(path=chunk.local_path))
             file.delete()
 
-    def create_dir(self, message):
+    def create_dir(self, message, max_hop):
         meta_data = dict(parse.parse(NEW_DIR, message).named)
         signature = meta_data.get("signature")
 
@@ -187,8 +189,7 @@ class PeerRecvThread(Thread):
                 path=meta_data.get("path"),
                 username=username,
                 signature=f"{signature}-{self.controller.ip_address}"
-
-            ))
+            ), signature, max_hop)
 
             lst = meta_data.get("path").split("/")
             path_owner = lst[0]
@@ -203,7 +204,7 @@ class PeerRecvThread(Thread):
             Permission(db=self.db, perm=Permission.OWNER, directory_id=new_dir.id,
                        user_id=User.fetch_by_username(username=username, db=self.db).id).save()
 
-    def create_chunk(self, message):
+    def create_chunk(self, message, max_hop):
         meta_data = dict(parse.parse(NEW_CHUNK, message).named)
         path_owner = meta_data.get("path").split("/")[0]
         path = "/".join(meta_data.get("path").split("/")[1:])
@@ -218,7 +219,7 @@ class PeerRecvThread(Thread):
                 extension=meta_data.get("extension"),
                 destination_file_path=meta_data.get("destination_file_path"),
                 signature=f"{signature}-{self.controller.ip_address}"
-            ))
+            ), signature, max_hop)
 
             requested_dir = Directory.find_path_directory(
                 main_dir=Directory.fetch_user_main_directory(username=path_owner, db=self.db), path=path)
@@ -229,7 +230,7 @@ class PeerRecvThread(Thread):
                   chunk_size=meta_data.get("chunk_size"), data_node_id=data_node.id,
                   file_id=file.id).save()
 
-    def create_account(self, message):
+    def create_account(self, message, max_hop):
         meta_data = dict(parse.parse(NEW_USER, message).named)
         username = meta_data.get("username")
         password = meta_data.get("password")
@@ -239,7 +240,7 @@ class PeerRecvThread(Thread):
                 username=username,
                 password=password,
                 signature=f"{signature}-{self.controller.ip_address}"
-            ))
+            ), signature, max_hop)
 
             user = User.fetch_by_username(username=username, db=self.db)
             if user is None:
@@ -254,7 +255,7 @@ class PeerRecvThread(Thread):
                 user.password = password
                 user.save()
 
-    def create_file(self, message):
+    def create_file(self, message, max_hop):
         meta_data = dict(parse.parse(NEW_FILE, message).named)
         path_owner = meta_data.get("path").split("/")[0]
         path = "/".join(meta_data.get("path").split("/")[1:])
@@ -268,7 +269,7 @@ class PeerRecvThread(Thread):
                 path=meta_data.get("path"),
                 sequence_num=meta_data.get("sequence_num"),
                 signature=f"{signature}-{self.controller.ip_address}"
-            ))
+            ), signature, max_hop)
 
             user = User.fetch_by_username(username=meta_data.get("username"), db=self.db)
             requested_dir = Directory.find_path_directory(
@@ -293,7 +294,7 @@ class PeerRecvThread(Thread):
         self.controller.peer_transmitter.transmit(UNBLOCK_QUEUEING)
         self.controller.release_queue_lock()
 
-    def update_data_node(self, message):
+    def update_data_node(self, message, max_hop):
         meta_data = dict(parse.parse(UPDATE_DATA_NODE, message).named)
         signature = meta_data.get("signature")
         if self.controller.ip_address not in signature.split('-'):
@@ -302,7 +303,7 @@ class PeerRecvThread(Thread):
                 available_byte_size=meta_data.get("available_byte_size"),
                 rack_number=meta_data.get("rack_number"),
                 signature=f"{signature}-{self.controller.ip_address}"
-            ))
+            ), signature, max_hop)
 
             data_node = DataNode.fetch_by_ip(meta_data.get("ip_address"), self.db)
             if data_node is None:
@@ -343,11 +344,13 @@ class PeerRecvThread(Thread):
             self.controller.peers.append(thread)
         else:
             self.session.transfer_data(STOP_FRIENDSHIP)
+            self.session.close()
             self.session = new_session
             self.controller.inform_next_node(
                 UPDATE_DATA_NODE.format(ip_address=data_node.ip_address, rack_number=data_node.rack_number,
                                         available_byte_size=data_node.available_byte_size,
-                                        signature=self.controller.ip_address))
+                                        signature=self.controller.ip_address),
+                previous_signature=self.session.ip_address)
 
         print("Thread ", [x.session.ip_address for x in self.controller.peers])
 
