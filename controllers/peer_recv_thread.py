@@ -339,3 +339,4 @@ class PeerRecvThread(Thread):
         self.db.close()
         self.continues = False
         self.controller.peers.remove(self)
+        print([x.session.ip_address for x in self.controller.peers])

@@ -146,7 +146,7 @@ class PeerController(Process, metaclass=Singleton):
 
         self.peers.append(thread)
         self.transfer_db(thread.session)
-        print(self.peers)
+        print([x.session.ip_address for x in self.peers])
 
     def inform_next_node(self, message):
         for peer in self.peers:
@@ -228,6 +228,7 @@ class PeerController(Process, metaclass=Singleton):
         for peer in peers_sessions:
             self.peers.append(PeerRecvThread(session=peer, controller=self))
             self.peers[-1].start()
+        print([x.session.ip_address for x in self.peers])
 
         if len(self.peers) == 0:
             MetaDatabase.initialize_tables()
