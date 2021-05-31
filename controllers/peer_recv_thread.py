@@ -354,12 +354,12 @@ class PeerRecvThread(Thread):
     def perform_recovery_actions(self):
         ip_address = self.session.ip_address
         self.session.close()
-        self.db.close()
         self.continues = False
-        self.controller.peers.remove(self)
         data_node = DataNode.fetch_by_ip(ip_address=ip_address, db=self.db)
         if data_node is not None:
             data_node.delete()
         self.controller.inform_next_node(REMOVE_DATA_NODE.format(ip_address=ip_address,
                                                                  signature=self.controller.ip_address))
+        self.db.close()
+        self.controller.peers.remove(self)
         print([x.session.ip_address for x in self.controller.peers])
