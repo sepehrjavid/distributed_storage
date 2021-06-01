@@ -13,7 +13,7 @@ class User:
         self.id = self.db.create("INSERT INTO users (username, password) VALUES (?, ?);", self.username, self.password)
 
     def __update(self):
-        self.db.execute("UPDATE data_node SET password=? WHERE id=?;", self.password, self.id)
+        self.db.execute("UPDATE users SET password=? WHERE id=?;", self.password, self.id)
 
     def save(self):
         if self.id is None:

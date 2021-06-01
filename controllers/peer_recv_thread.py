@@ -151,37 +151,46 @@ class PeerRecvThread(Thread):
         meta_data = dict(parse.parse(REMOVE_FILE, message).named)
         signature = meta_data.get("signature")
 
-        if self.controller.ip_address not in signature.split('-'):
+        logical_path = meta_data.get("path")
+        lst = logical_path.split("/")
+        path_owner = lst[0]
+        dir_path = "/".join(lst[1:-1])
+
+        if "." in lst[-1]:
+            file_name = lst[-1].split(".")[0]
+            extension = lst[-1].split(".")[1]
+        else:
+            file_name = lst[-1].split(".")[0]
+            extension = None
+
+        directory = Directory.find_path_directory(
+            main_dir=Directory.fetch_user_main_directory(username=path_owner, db=self.db), path=dir_path)
+        possible_file = [x for x in directory.files if x.title == file_name and x.extension == extension]
+
+        if self.controller.ip_address not in signature.split('-') and len(possible_file) != 0:
             self.controller.inform_next_node(REMOVE_FILE.format(
                 path=meta_data.get("path"),
                 signature=f"{signature}-{self.controller.ip_address}"
             ))
 
-            logical_path = meta_data.get("path")
-            lst = logical_path.split("/")
-            path_owner = lst[0]
-            dir_path = "/".join(lst[1:-1])
-
-            if "." in lst[-1]:
-                file_name = lst[-1].split(".")[0]
-                extension = lst[-1].split(".")[1]
-            else:
-                file_name = lst[-1].split(".")[0]
-                extension = None
-
-            directory = Directory.find_path_directory(
-                main_dir=Directory.fetch_user_main_directory(username=path_owner, db=self.db), path=dir_path)
-
-            file = list(filter(lambda x: x.title == file_name and x.extension == extension, directory.files))[0]
+            file = possible_file[0]
             for chunk in file.chunks:
                 self.controller.client_controller_pipe.send(DELETE_CHUNK.format(path=chunk.local_path))
             file.delete()
 
     def create_dir(self, message):
         meta_data = dict(parse.parse(NEW_DIR, message).named)
+        lst = meta_data.get("path").split("/")
+        path_owner = lst[0]
+        new_dir_name = lst[-1]
+        dir_path = "/".join(lst[1:-1])
         signature = meta_data.get("signature")
 
-        if self.controller.ip_address not in signature.split('-'):
+        directory = Directory.find_path_directory(
+            main_dir=Directory.fetch_user_main_directory(username=path_owner, db=self.db), path=dir_path)
+
+        if self.controller.ip_address not in signature.split('-') and new_dir_name not in [x.title for x in
+                                                                                           directory.children]:
             username = meta_data.get("username")
             self.controller.inform_next_node(NEW_DIR.format(
                 path=meta_data.get("path"),
@@ -189,14 +198,6 @@ class PeerRecvThread(Thread):
                 signature=f"{signature}-{self.controller.ip_address}"
 
             ))
-
-            lst = meta_data.get("path").split("/")
-            path_owner = lst[0]
-            new_dir_name = lst[-1]
-            dir_path = "/".join(lst[1:-1])
-
-            directory = Directory.find_path_directory(
-                main_dir=Directory.fetch_user_main_directory(username=path_owner, db=self.db), path=dir_path)
 
             new_dir = Directory(db=self.db, title=new_dir_name, parent_directory_id=directory.id)
             new_dir.save()
@@ -208,7 +209,18 @@ class PeerRecvThread(Thread):
         path_owner = meta_data.get("path").split("/")[0]
         path = "/".join(meta_data.get("path").split("/")[1:])
         signature = meta_data.get("signature")
-        if self.controller.ip_address not in signature.split('-'):
+
+        requested_dir = Directory.find_path_directory(
+            main_dir=Directory.fetch_user_main_directory(username=path_owner, db=self.db), path=path)
+        file = File.fetch_by_dir_title_extension(dir_id=requested_dir.id, title=meta_data.get("title"),
+                                                 extension=meta_data.get("extension"), db=self.db)
+        data_node = DataNode.fetch_by_ip(meta_data.get("ip_address"), db=self.db)
+        possible_same_chunk = Chunk.fetch_by_file_id_data_node_id_sequence(file_id=file.id,
+                                                                           data_node_id=data_node.id,
+                                                                           sequence=meta_data.get("sequence"),
+                                                                           db=self.db)
+
+        if self.controller.ip_address not in signature.split('-') and possible_same_chunk is None:
             self.controller.inform_next_node(NEW_CHUNK.format(
                 ip_address=meta_data.get("ip_address"),
                 sequence=meta_data.get("sequence"),
@@ -220,11 +232,6 @@ class PeerRecvThread(Thread):
                 signature=f"{signature}-{self.controller.ip_address}"
             ))
 
-            requested_dir = Directory.find_path_directory(
-                main_dir=Directory.fetch_user_main_directory(username=path_owner, db=self.db), path=path)
-            file = File.fetch_by_dir_title_extension(dir_id=requested_dir.id, title=meta_data.get("title"),
-                                                     extension=meta_data.get("extension"), db=self.db)
-            data_node = DataNode.fetch_by_ip(meta_data.get("ip_address"), db=self.db)
             Chunk(db=self.db, sequence=meta_data.get("sequence"), local_path=meta_data.get("destination_file_path"),
                   chunk_size=meta_data.get("chunk_size"), data_node_id=data_node.id,
                   file_id=file.id).save()
@@ -234,25 +241,23 @@ class PeerRecvThread(Thread):
         username = meta_data.get("username")
         password = meta_data.get("password")
         signature = meta_data.get("signature")
-        if self.controller.ip_address not in signature.split('-'):
+
+        user = User.fetch_by_username(username=username, db=self.db)
+
+        if self.controller.ip_address not in signature.split('-') and user is None:
             self.controller.inform_next_node(NEW_USER.format(
                 username=username,
                 password=password,
                 signature=f"{signature}-{self.controller.ip_address}"
             ))
 
-            user = User.fetch_by_username(username=username, db=self.db)
-            if user is None:
-                user = User(db=self.db, username=username, password=password)
-                user.save()
-                main_directory = Directory(db=self.db, title=Directory.MAIN_DIR_NAME, parent_directory_id=None)
-                main_directory.save()
-                permission = Permission(db=self.db, directory_id=main_directory.id, user_id=user.id,
-                                        perm=Permission.OWNER)
-                permission.save()
-            else:
-                user.password = password
-                user.save()
+            user = User(db=self.db, username=username, password=password)
+            user.save()
+            main_directory = Directory(db=self.db, title=Directory.MAIN_DIR_NAME, parent_directory_id=None)
+            main_directory.save()
+            permission = Permission(db=self.db, directory_id=main_directory.id, user_id=user.id,
+                                    perm=Permission.OWNER)
+            permission.save()
 
     def create_file(self, message):
         meta_data = dict(parse.parse(NEW_FILE, message).named)
@@ -260,7 +265,13 @@ class PeerRecvThread(Thread):
         path = "/".join(meta_data.get("path").split("/")[1:])
         signature = meta_data.get("signature")
 
-        if self.controller.ip_address not in signature.split('-'):
+        user = User.fetch_by_username(username=meta_data.get("username"), db=self.db)
+        requested_dir = Directory.find_path_directory(
+            main_dir=Directory.fetch_user_main_directory(username=path_owner, db=self.db), path=path)
+        file = File.fetch_by_dir_title_extension(dir_id=requested_dir.id, extension=meta_data.get("extension"),
+                                                 title=meta_data.get("title"), db=self.db)
+
+        if self.controller.ip_address not in signature.split('-') and file is None:
             self.controller.inform_next_node(NEW_FILE.format(
                 title=meta_data.get("title"),
                 extension=meta_data.get("extension"),
@@ -270,21 +281,11 @@ class PeerRecvThread(Thread):
                 signature=f"{signature}-{self.controller.ip_address}"
             ))
 
-            user = User.fetch_by_username(username=meta_data.get("username"), db=self.db)
-            requested_dir = Directory.find_path_directory(
-                main_dir=Directory.fetch_user_main_directory(username=path_owner, db=self.db), path=path)
-            file = File.fetch_by_dir_title_extension(dir_id=requested_dir.id, extension=meta_data.get("extension"),
-                                                     title=meta_data.get("title"), db=self.db)
-
-            if file is None:
-                file = File(db=self.db, title=meta_data.get("title"), extension=meta_data.get("extension"),
-                            sequence_num=meta_data.get("sequence_num"), directory_id=requested_dir.id,
-                            is_complete=False)
-                file.save()
-                Permission(db=self.db, perm=Permission.OWNER, file_id=file.id, user_id=user.id).save()
-            else:
-                file.title = meta_data.get("title")
-                file.save()
+            file = File(db=self.db, title=meta_data.get("title"), extension=meta_data.get("extension"),
+                        sequence_num=meta_data.get("sequence_num"), directory_id=requested_dir.id,
+                        is_complete=False)
+            file.save()
+            Permission(db=self.db, perm=Permission.OWNER, file_id=file.id, user_id=user.id).save()
 
     def receive_db(self):
         file_session = FileSession()
