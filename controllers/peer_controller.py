@@ -3,6 +3,11 @@ import socket
 from multiprocessing import Process
 from multiprocessing.connection import Connection
 
+try:
+    from _queue import Empty
+except ImportError:
+    from queue import Empty
+
 from threading import Thread, Event
 from time import monotonic, sleep
 
@@ -16,8 +21,7 @@ from meta_data.models.data_node import DataNode
 from servers.peer_server import PeerBroadcastServer
 from valid_messages import (INTRODUCE_PEER, CONFIRM_HANDSHAKE, MESSAGE_SEPARATOR, NULL, RESPOND_TO_BROADCAST,
                             REJECT, JOIN_NETWORK, ACCEPT, RESPOND_TO_INTRODUCTION, BLOCK_QUEUEING,
-                            UNBLOCK_QUEUEING, ABORT_JOIN, UPDATE_DATA_NODE, SEND_DB, START_CLIENT_SERVER,
-                            RESPOND_PEER_FAILURE, PEER_FAILURE)
+                            UNBLOCK_QUEUEING, ABORT_JOIN, UPDATE_DATA_NODE, SEND_DB, START_CLIENT_SERVER)
 from session.exceptions import PeerTimeOutException
 from session.sessions import SimpleSession, FileSession
 from singleton.singleton import Singleton
@@ -82,7 +86,6 @@ class PeerController(Process, metaclass=Singleton):
         self.activity_lock.set()
 
     def handle_storage_process_messages(self, activity_lock: Event):
-        db_connection = MetaDatabase()
         i = -1
         while True:
             i += 1
@@ -90,20 +93,8 @@ class PeerController(Process, metaclass=Singleton):
             print(f"number: {i}")
             if self.client_controller_pipe.poll():
                 message = self.client_controller_pipe.recv()
-                self.inform_next_node(message=message, db=db_connection)
+                self.inform_next_node(message)
             sleep(1)
-
-    def inform_substitute_for_failure(self, message):
-        meta_data = dict(parse.parse(RESPOND_PEER_FAILURE, message).named)
-        reporter_address = meta_data.get("reporter_address")
-
-        if reporter_address == self.ip_address:
-            failed_address = meta_data.get("failed_address")
-
-    def check_failure(self, message):
-        meta_data = dict(parse.parse(PEER_FAILURE, message).named)
-        reporter_address = meta_data.get("ip_address")
-        failed_address = meta_data.get("failed_address")
 
     def add_peer(self, ip_address):
         print(f"ready to add peer {ip_address}")
@@ -148,45 +139,18 @@ class PeerController(Process, metaclass=Singleton):
         data_node.save()
 
         if len(self.peers) > 1:
-            data_node_count = len(DataNode.fetch_all(db=self.db_connection)) - 3
-            if data_node_count % 2 == 0:
-                max_hop = data_node_count // 2
-            else:
-                max_hop = (data_node_count // 2) + 1
-
-            self.peers[1].session.transfer_data(
-                UPDATE_DATA_NODE.format(ip_address=data_node.ip_address, rack_number=data_node.rack_number,
-                                        available_byte_size=data_node.available_byte_size,
-                                        signature=self.ip_address) + MESSAGE_SEPARATOR + str(max_hop))
+            self.inform_next_node(
+                UPDATE_DATA_NODE.encode(ip_address=data_node.ip_address, rack_number=data_node.rack_number,
+                                        available_byte_size=data_node.available_byte_size, signature=self.ip_address))
             lost_peer = self.peers.pop(0)
-            lost_peer.join()
 
         self.peers.append(thread)
         self.transfer_db(thread.session)
         print([x.session.ip_address for x in self.peers])
 
-    def inform_next_node(self, message, previous_signature: str = "", max_hop=None, db: MetaDatabase = None):
-        if not previous_signature:
-            if db is None:
-                raise Exception("Invalid db value")
-
-            data_node_count = len(DataNode.fetch_all(db=db)) - 1
-            if data_node_count % 2 == 0:
-                left_hop = right_hop = data_node_count // 2
-            else:
-                left_hop = data_node_count // 2
-                right_hop = (data_node_count // 2) + 1
-            self.peers[0].session.transfer_data(message + MESSAGE_SEPARATOR + str(right_hop))
-            self.peers[1].session.transfer_data(message + MESSAGE_SEPARATOR + str(left_hop))
-        else:
-            if max_hop is None:
-                raise Exception("Invalid max hop value")
-
-            signature_ips = previous_signature.split('-')
-            if len(signature_ips) < max_hop:
-                for peer in self.peers:
-                    if peer.session.ip_address not in signature_ips:
-                        peer.session.transfer_data(message + MESSAGE_SEPARATOR + str(max_hop))
+    def inform_next_node(self, message):
+        for peer in self.peers:
+            peer.session.transfer_data(message)
 
     def join_network(self) -> list:
         confirmation_message = CONFIRM_HANDSHAKE.format(available_byte_size=self.available_byte_size,

@@ -283,7 +283,7 @@ class ClientActions:
             print("Invalid permission value")
 
     def grant_file_permission(self):
-        path = input("Enter the file path: ")
+        path = input("Enter the directory path: ")
         user = input("Enter the username to grant permission to: ")
         permission = input("Enter permission value: ")
 
@@ -294,7 +294,7 @@ class ClientActions:
 
         if response == ACCEPT:
             print("Success!")
-        elif response == INVALID_PATH or response == FILE_DOES_NOT_EXIST:
+        elif response == INVALID_PATH:
             print("Invalid File Path")
         elif response == NO_PERMISSION:
             print("Permission Denied")
