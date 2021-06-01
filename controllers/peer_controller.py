@@ -45,8 +45,8 @@ class PeerController(Process, metaclass=Singleton):
         self.client_controller_pipe = client_controller_pipe
         self.peers = []
         self.broadcast_server = PeerBroadcastServer(broadcast_address=self.broadcast_address, peer_controller=self)
-        self.db_table_locks = {"user": Lock(), "permission": Lock(), "file": Lock(), "chunk": Lock(),
-                               "directory": Lock(), "data_node": Lock()}
+        # self.db_table_locks = {"user": Lock(), "permission": Lock(), "file": Lock(), "chunk": Lock(),
+        #                        "directory": Lock(), "data_node": Lock()}
 
     def update_config_file(self):
         with open(self.CONFIG_FILE_PATH, "r") as config_file:
