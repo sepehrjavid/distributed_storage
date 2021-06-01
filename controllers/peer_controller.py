@@ -134,7 +134,7 @@ class PeerController(Process, metaclass=Singleton):
         data_node.save()
 
         if len(self.peers) > 1:
-            self.inform_next_node(
+            self.peers[1].session.transfer_data(
                 UPDATE_DATA_NODE.encode(ip_address=data_node.ip_address, rack_number=data_node.rack_number,
                                         available_byte_size=data_node.available_byte_size, signature=self.ip_address))
             lost_peer = self.peers.pop(0)
