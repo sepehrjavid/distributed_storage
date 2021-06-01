@@ -1,5 +1,6 @@
 from broadcast.servers import SimpleBroadcastServer
-from valid_messages import JOIN_NETWORK, UNBLOCK_QUEUEING, BLOCK_QUEUEING
+from valid_messages import JOIN_NETWORK, UNBLOCK_QUEUEING, BLOCK_QUEUEING, RESPOND_PEER_FAILURE, MESSAGE_SEPARATOR, \
+    PEER_FAILURE
 from singleton.singleton import Singleton
 
 
@@ -23,6 +24,11 @@ class PeerBroadcastServer(SimpleBroadcastServer, metaclass=Singleton):
         elif data.decode() == BLOCK_QUEUEING:
             self.peer_controller.lock_queue()
             print("blocked")
+        elif data.decode().split(MESSAGE_SEPARATOR)[0] == PEER_FAILURE.split(MESSAGE_SEPARATOR)[0]:
+            self.peer_controller.check_failure(data.decode())
+        elif data.decode().split(MESSAGE_SEPARATOR)[0] == RESPOND_PEER_FAILURE.split(MESSAGE_SEPARATOR)[0]:
+            print("ready to recover from failure!")
+            self.peer_controller.inform_substitute_for_failure(data.decode())
 
     def start(self):
         print("Broadcast server started")

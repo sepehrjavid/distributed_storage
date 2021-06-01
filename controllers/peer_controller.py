@@ -16,7 +16,8 @@ from meta_data.models.data_node import DataNode
 from servers.peer_server import PeerBroadcastServer
 from valid_messages import (INTRODUCE_PEER, CONFIRM_HANDSHAKE, MESSAGE_SEPARATOR, NULL, RESPOND_TO_BROADCAST,
                             REJECT, JOIN_NETWORK, ACCEPT, RESPOND_TO_INTRODUCTION, BLOCK_QUEUEING,
-                            UNBLOCK_QUEUEING, ABORT_JOIN, UPDATE_DATA_NODE, SEND_DB, START_CLIENT_SERVER)
+                            UNBLOCK_QUEUEING, ABORT_JOIN, UPDATE_DATA_NODE, SEND_DB, START_CLIENT_SERVER,
+                            RESPOND_PEER_FAILURE, PEER_FAILURE)
 from session.exceptions import PeerTimeOutException
 from session.sessions import SimpleSession, FileSession
 from singleton.singleton import Singleton
@@ -91,6 +92,18 @@ class PeerController(Process, metaclass=Singleton):
                 message = self.client_controller_pipe.recv()
                 self.inform_next_node(message=message, db=db_connection)
             sleep(1)
+
+    def inform_substitute_for_failure(self, message):
+        meta_data = dict(parse.parse(RESPOND_PEER_FAILURE, message).named)
+        reporter_address = meta_data.get("reporter_address")
+
+        if reporter_address == self.ip_address:
+            failed_address = meta_data.get("failed_address")
+
+    def check_failure(self, message):
+        meta_data = dict(parse.parse(PEER_FAILURE, message).named)
+        reporter_address = meta_data.get("ip_address")
+        failed_address = meta_data.get("failed_address")
 
     def add_peer(self, ip_address):
         print(f"ready to add peer {ip_address}")
