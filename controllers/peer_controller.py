@@ -3,11 +3,6 @@ import socket
 from multiprocessing import Process
 from multiprocessing.connection import Connection
 
-try:
-    from _queue import Empty
-except ImportError:
-    from queue import Empty
-
 from threading import Thread, Event
 from time import monotonic, sleep
 
@@ -143,6 +138,7 @@ class PeerController(Process, metaclass=Singleton):
                 UPDATE_DATA_NODE.encode(ip_address=data_node.ip_address, rack_number=data_node.rack_number,
                                         available_byte_size=data_node.available_byte_size, signature=self.ip_address))
             lost_peer = self.peers.pop(0)
+            lost_peer.join()
 
         self.peers.append(thread)
         self.transfer_db(thread.session)
