@@ -355,12 +355,12 @@ class PeerRecvThread(Thread):
             if data_node_count % 2 == 0:
                 max_hop = data_node_count / 2
             else:
-                max_hop = (data_node_count // 2) + 1
-            self.controller.inform_next_node(
-                UPDATE_DATA_NODE.format(ip_address=data_node.ip_address, rack_number=data_node.rack_number,
-                                        available_byte_size=data_node.available_byte_size,
-                                        signature=self.session.ip_address + "-" + self.controller.ip_address),
-                previous_signature=self.session.ip_address, max_hop=max_hop)
+                max_hop = (data_node_count // 2)
+            if max_hop > 0:
+                self.controller.peers[1 - self.controller.peers.index(self)].session.transfer_data(
+                    UPDATE_DATA_NODE.format(ip_address=data_node.ip_address, rack_number=data_node.rack_number,
+                                            available_byte_size=data_node.available_byte_size,
+                                            signature=self.controller.ip_address) + MESSAGE_SEPARATOR + str(max_hop))
 
         print("Thread ", [x.session.ip_address for x in self.controller.peers])
 

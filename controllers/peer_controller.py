@@ -88,7 +88,7 @@ class PeerController(Process, metaclass=Singleton):
             print(f"number: {i}")
             if self.client_controller_pipe.poll():
                 message = self.client_controller_pipe.recv()
-                self.inform_next_node(message)
+                self.inform_next_node(message=message, db=self.db_connection)
             sleep(1)
 
     def add_peer(self, ip_address):
@@ -151,8 +151,11 @@ class PeerController(Process, metaclass=Singleton):
         self.transfer_db(thread.session)
         print([x.session.ip_address for x in self.peers])
 
-    def inform_next_node(self, message, previous_signature: str = "", max_hop=None):
+    def inform_next_node(self, message, previous_signature: str = "", max_hop=None, db: MetaDatabase = None):
         if not previous_signature:
+            if db is None:
+                raise Exception("Invalid db value")
+
             data_node_count = len(DataNode.fetch_all(db=self.db_connection)) - 1
             if data_node_count % 2 == 0:
                 left_hop = right_hop = data_node_count / 2
@@ -162,6 +165,9 @@ class PeerController(Process, metaclass=Singleton):
             self.peers[0].session.transfer_data(message + MESSAGE_SEPARATOR + str(right_hop))
             self.peers[1].session.transfer_data(message + MESSAGE_SEPARATOR + str(left_hop))
         else:
+            if max_hop is None:
+                raise Exception("Invalid max hop value")
+
             signature_ips = previous_signature.split('-')
             if len(signature_ips) < max_hop:
                 for peer in self.peers:
