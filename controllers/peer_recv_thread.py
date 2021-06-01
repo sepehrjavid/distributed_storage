@@ -242,23 +242,23 @@ class PeerRecvThread(Thread):
         password = meta_data.get("password")
         signature = meta_data.get("signature")
 
-        # with self.controller.db_table_locks["user"]:
-        user = User.fetch_by_username(username=username, db=self.db)
+        with self.controller.db_table_locks["user"]:
+            user = User.fetch_by_username(username=username, db=self.db)
 
-        if self.controller.ip_address not in signature.split('-') and user is None:
-            self.controller.inform_next_node(NEW_USER.format(
-                username=username,
-                password=password,
-                signature=f"{signature}-{self.controller.ip_address}"
-            ))
+            if self.controller.ip_address not in signature.split('-') and user is None:
+                self.controller.inform_next_node(NEW_USER.format(
+                    username=username,
+                    password=password,
+                    signature=f"{signature}-{self.controller.ip_address}"
+                ))
 
-            user = User(db=self.db, username=username, password=password)
-            user.save()
-            main_directory = Directory(db=self.db, title=Directory.MAIN_DIR_NAME, parent_directory_id=None)
-            main_directory.save()
-            permission = Permission(db=self.db, directory_id=main_directory.id, user_id=user.id,
-                                    perm=Permission.OWNER)
-            permission.save()
+                user = User(db=self.db, username=username, password=password)
+                user.save()
+                main_directory = Directory(db=self.db, title=Directory.MAIN_DIR_NAME, parent_directory_id=None)
+                main_directory.save()
+                permission = Permission(db=self.db, directory_id=main_directory.id, user_id=user.id,
+                                        perm=Permission.OWNER)
+                permission.save()
 
     def create_file(self, message):
         meta_data = dict(parse.parse(NEW_FILE, message).named)
