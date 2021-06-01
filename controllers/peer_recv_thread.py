@@ -371,8 +371,8 @@ class PeerRecvThread(Thread):
         data_node = DataNode.fetch_by_ip(ip_address=ip_address, db=self.db)
         if data_node is not None:
             data_node.delete()
-        self.controller.peers.remove(self)
         self.controller.inform_next_node(REMOVE_DATA_NODE.format(ip_address=ip_address,
-                                                                 signature=self.controller.ip_address))
+                                                                 signature=self.controller.ip_address), db=self.db)
         self.db.close()
+        self.controller.peers.remove(self)
         print([x.session.ip_address for x in self.controller.peers])
