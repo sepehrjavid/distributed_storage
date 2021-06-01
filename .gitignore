@@ -4,4 +4,3 @@ venv/
 meta_data.db
 __pycache__
 */__pycache__
-meta_data/models/__pycache__
