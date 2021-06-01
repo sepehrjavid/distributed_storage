@@ -353,7 +353,7 @@ class PeerRecvThread(Thread):
 
             data_node_count = len(DataNode.fetch_all(db=self.db)) - 3
             if data_node_count % 2 == 0:
-                max_hop = data_node_count / 2
+                max_hop = data_node_count // 2
             else:
                 max_hop = (data_node_count // 2)
             if max_hop > 0:

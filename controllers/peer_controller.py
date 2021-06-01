@@ -137,7 +137,7 @@ class PeerController(Process, metaclass=Singleton):
         if len(self.peers) > 1:
             data_node_count = len(DataNode.fetch_all(db=self.db_connection)) - 3
             if data_node_count % 2 == 0:
-                max_hop = data_node_count / 2
+                max_hop = data_node_count // 2
             else:
                 max_hop = (data_node_count // 2) + 1
 
@@ -159,7 +159,7 @@ class PeerController(Process, metaclass=Singleton):
 
             data_node_count = len(DataNode.fetch_all(db=db)) - 1
             if data_node_count % 2 == 0:
-                left_hop = right_hop = data_node_count / 2
+                left_hop = right_hop = data_node_count // 2
             else:
                 left_hop = data_node_count // 2
                 right_hop = (data_node_count // 2) + 1
