@@ -81,6 +81,7 @@ class PeerController(Process, metaclass=Singleton):
         self.activity_lock.set()
 
     def handle_storage_process_messages(self, activity_lock: Event):
+        db_connection = MetaDatabase()
         i = -1
         while True:
             i += 1
@@ -88,7 +89,7 @@ class PeerController(Process, metaclass=Singleton):
             print(f"number: {i}")
             if self.client_controller_pipe.poll():
                 message = self.client_controller_pipe.recv()
-                self.inform_next_node(message=message, db=self.db_connection)
+                self.inform_next_node(message=message, db=db_connection)
             sleep(1)
 
     def add_peer(self, ip_address):
