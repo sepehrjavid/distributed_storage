@@ -157,7 +157,7 @@ class PeerController(Process, metaclass=Singleton):
             if db is None:
                 raise Exception("Invalid db value")
 
-            data_node_count = len(DataNode.fetch_all(db=self.db_connection)) - 1
+            data_node_count = len(DataNode.fetch_all(db=db)) - 1
             if data_node_count % 2 == 0:
                 left_hop = right_hop = data_node_count / 2
             else:
