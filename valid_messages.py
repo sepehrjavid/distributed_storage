@@ -51,6 +51,7 @@ BLOCK_QUEUEING = "blck"
 ABORT_JOIN = "abrt"
 PEER_FAILURE = "failpeer-{failed_address}-{reporter_address}"
 RESPOND_PEER_FAILURE = "rspndfailpeer-{failed_address}-{self_ip_address}-{reporter_address}"
+REPLICATE_CHUNK = "rep-{create_chunk_message}"
 
 """
 General Messages
