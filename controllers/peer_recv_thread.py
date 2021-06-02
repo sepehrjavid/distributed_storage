@@ -434,6 +434,7 @@ class PeerRecvThread(Thread):
             else:
                 self.continues = False
                 self.db.close()
+                self.controller.peers.remove(self)
 
         self.controller_inbox = None
         self.thread_inbox = None

@@ -148,7 +148,7 @@ class PeerController(Process, metaclass=Singleton):
     def inform_next_node(self, message, previous_signature: str = ""):
         seen_data_nodes = previous_signature.split(MESSAGE_SEPARATOR)
         for peer in self.peers:
-            if peer.session.ip_address not in seen_data_nodes:
+            if not peer.failed and peer.session.ip_address not in seen_data_nodes:
                 peer.session.transfer_data(message)
 
     def join_network(self) -> list:
@@ -214,7 +214,7 @@ class PeerController(Process, metaclass=Singleton):
         print("confirmed both peers")
         return [peer_session, suggested_peer_session]
 
-    def handle_peer_failure(self, message):
+    def respond_to_peer_failure(self, message):
         meta_data = dict(parse.parse(PEER_FAILURE, message).named)
         failed_address = meta_data.get("failed_address")
         reporter_address = meta_data.get("reporter_address")
@@ -226,6 +226,19 @@ class PeerController(Process, metaclass=Singleton):
                     reporter_address=reporter_address,
                     self_ip_address=self.ip_address
                 ))
+
+    def handle_peer_failure_response(self, message):
+        meta_data = dict(parse.parse(RESPOND_PEER_FAILURE, message).named)
+        failed_address = meta_data.get("failed_address")
+        reporter_address = meta_data.get("reporter_address")
+
+        if self.ip_address == reporter_address:
+            for peer in self.peers:
+                if peer.failed and peer.controller_inbox == failed_address:
+                    peer.thread_inbox = meta_data.get("self_ip_address")
+                    peer.failure_help_found.set()
+                    break
+
 
     # noinspection PyAttributeOutsideInit
     def run(self):
