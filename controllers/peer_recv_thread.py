@@ -1,4 +1,5 @@
-from threading import Thread, Lock
+import socket
+from threading import Thread, Lock, Event
 from time import monotonic
 
 import parse
@@ -13,13 +14,14 @@ from meta_data.models.user import User
 from valid_messages import (CONFIRM_HANDSHAKE, STOP_FRIENDSHIP, RESPOND_TO_INTRODUCTION, ACCEPT, INTRODUCE_PEER,
                             MESSAGE_SEPARATOR, SEND_DB, UPDATE_DATA_NODE, UNBLOCK_QUEUEING, START_CLIENT_SERVER,
                             NEW_USER, NEW_FILE, NEW_CHUNK, NEW_DIR, REMOVE_FILE, NEW_FILE_PERMISSION,
-                            NEW_DIR_PERMISSION, DELETE_CHUNK, REMOVE_DATA_NODE)
+                            NEW_DIR_PERMISSION, DELETE_CHUNK, REMOVE_DATA_NODE, PEER_FAILURE)
 from session.exceptions import PeerTimeOutException
 from session.sessions import SimpleSession, FileSession, EncryptedSession
 
 
 class PeerRecvThread(Thread):
     DATABASE_LOCK = Lock()
+    RECOVERY_DATA_NODE_CONNECTION_TIMEOUT = 5
 
     def __init__(self, session: EncryptedSession, controller, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -27,6 +29,10 @@ class PeerRecvThread(Thread):
         self.controller = controller
         self.continues = True
         self.db = None
+        self.controller_inbox = None
+        self.thread_inbox = None
+        self.failure_help_found = Event()
+        self.failed = False
 
     def run(self):
         self.db = MetaDatabase()
@@ -378,14 +384,58 @@ class PeerRecvThread(Thread):
         print("Thread ", [x.session.ip_address for x in self.controller.peers])
 
     def perform_recovery_actions(self):
+        self.failed = True
         ip_address = self.session.ip_address
         self.session.close()
-        self.continues = False
         data_node = DataNode.fetch_by_ip(ip_address=ip_address, db=self.db)
         if data_node is not None:
             data_node.delete()
-        self.controller.peers.remove(self)
-        self.controller.inform_next_node(REMOVE_DATA_NODE.format(ip_address=ip_address,
-                                                                 signature=self.controller.ip_address))
-        self.db.close()
+
+        if len(self.controller.peers) == 0:
+            self.continues = False
+            self.db.close()
+            self.controller.peers.remove(self)
+        else:
+            data_node_count = len(DataNode.fetch_all(db=self.db))
+            if data_node_count > 2:
+                self.controller_inbox = ip_address
+                self.controller.peers[0].session.transfer_data(
+                    REMOVE_DATA_NODE.format(ip_address=ip_address,
+                                            signature=self.controller.ip_address))
+
+                self.controller.peer_transmitter.transmit(PEER_FAILURE.format(
+                    failed_address=ip_address,
+                    ip_address=self.controller.ip_address
+                ))
+
+                self.failure_help_found.wait()
+                new_ip_address = self.thread_inbox
+                self.thread_inbox = None
+                self.failure_help_found.clear()
+
+                if new_ip_address > self.controller.ip_address:
+                    self.session = EncryptedSession(ip_address=new_ip_address, port_number=self.controller.PORT_NUMBER)
+                    self.failed = False
+                    self.controller_inbox = None
+                else:
+                    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    server_socket.bind((self.controller.ip_address, self.controller.PORT_NUMBER))
+                    server_socket.listen(2)
+                    server_socket.settimeout(self.RECOVERY_DATA_NODE_CONNECTION_TIMEOUT)
+
+                    try:
+                        client_socket, addr = server_socket.accept()
+                        while addr[0] != new_ip_address:
+                            client_socket, addr = server_socket.accept()
+                        self.session = EncryptedSession(input_socket=client_socket, is_server=True)
+                        self.failed = False
+                        self.controller_inbox = None
+                    except socket.timeout:
+                        self.continues = False
+                        self.db.close()
+                        self.controller.peers.remove(self)
+            else:
+                self.continues = False
+                self.db.close()
+
         print([x.session.ip_address for x in self.controller.peers])
