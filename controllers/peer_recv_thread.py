@@ -73,7 +73,7 @@ class PeerRecvThread(Thread):
                 ip_address=meta_data.get("ip_address"),
                 signature=f"{signature}-{self.controller.ip_address}"
 
-            ))
+            ), previous_signature=signature)
             data_node = DataNode.fetch_by_ip(ip_address=meta_data.get("ip_address"), db=self.db)
 
             if data_node is not None:
@@ -89,7 +89,7 @@ class PeerRecvThread(Thread):
                 path=meta_data.get("path"),
                 perm=meta_data.get("perm"),
                 signature=f"{signature}-{self.controller.ip_address}"
-            ))
+            ), previous_signature=signature)
 
             logical_path = meta_data.get("path")
             lst = logical_path.split("/")
@@ -128,7 +128,7 @@ class PeerRecvThread(Thread):
                 path=meta_data.get("path"),
                 perm=meta_data.get("perm"),
                 signature=f"{signature}-{self.controller.ip_address}"
-            ))
+            ), previous_signature=signature)
 
             lst = meta_data.get("path").split("/")
             path_owner = lst[0]
@@ -155,7 +155,7 @@ class PeerRecvThread(Thread):
             self.controller.inform_next_node(REMOVE_FILE.format(
                 path=meta_data.get("path"),
                 signature=f"{signature}-{self.controller.ip_address}"
-            ))
+            ), previous_signature=signature)
 
             logical_path = meta_data.get("path")
             lst = logical_path.split("/")
@@ -191,7 +191,7 @@ class PeerRecvThread(Thread):
                 username=username,
                 signature=f"{signature}-{self.controller.ip_address}"
 
-            ))
+            ), previous_signature=signature)
 
             lst = meta_data.get("path").split("/")
             path_owner = lst[0]
@@ -222,7 +222,7 @@ class PeerRecvThread(Thread):
                 extension=meta_data.get("extension"),
                 destination_file_path=meta_data.get("destination_file_path"),
                 signature=f"{signature}-{self.controller.ip_address}"
-            ))
+            ), previous_signature=signature)
 
             requested_dir = Directory.find_path_directory(
                 main_dir=Directory.fetch_user_main_directory(username=path_owner, db=self.db), path=path)
@@ -243,7 +243,7 @@ class PeerRecvThread(Thread):
                 username=username,
                 password=password,
                 signature=f"{signature}-{self.controller.ip_address}"
-            ))
+            ), previous_signature=signature)
 
             user = User.fetch_by_username(username=username, db=self.db)
             if user is None:
@@ -269,7 +269,7 @@ class PeerRecvThread(Thread):
                 path=meta_data.get("path"),
                 sequence_num=meta_data.get("sequence_num"),
                 signature=f"{signature}-{self.controller.ip_address}"
-            ))
+            ), previous_signature=signature)
 
             user = User.fetch_by_username(username=meta_data.get("username"), db=self.db)
             requested_dir = Directory.find_path_directory(
@@ -300,7 +300,7 @@ class PeerRecvThread(Thread):
                 available_byte_size=meta_data.get("available_byte_size"),
                 rack_number=meta_data.get("rack_number"),
                 signature=f"{signature}-{self.controller.ip_address}"
-            ))
+            ), previous_signature=signature)
 
             data_node = DataNode.fetch_by_ip(meta_data.get("ip_address"), self.db)
             if data_node is None:

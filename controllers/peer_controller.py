@@ -144,9 +144,11 @@ class PeerController(Process, metaclass=Singleton):
         self.transfer_db(thread.session)
         print([x.session.ip_address for x in self.peers])
 
-    def inform_next_node(self, message):
+    def inform_next_node(self, message, previous_signature: str = ""):
+        seen_data_nodes = previous_signature.split(MESSAGE_SEPARATOR)
         for peer in self.peers:
-            peer.session.transfer_data(message)
+            if peer.session.ip_address not in seen_data_nodes:
+                peer.session.transfer_data(message)
 
     def join_network(self) -> list:
         confirmation_message = CONFIRM_HANDSHAKE.format(available_byte_size=self.available_byte_size,
