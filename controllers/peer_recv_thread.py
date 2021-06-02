@@ -386,6 +386,7 @@ class PeerRecvThread(Thread):
     def perform_recovery_actions(self):
         self.failed = True
         ip_address = self.session.ip_address
+        self.controller_inbox = ip_address
         self.session.close()
         data_node = DataNode.fetch_by_ip(ip_address=ip_address, db=self.db)
         if data_node is not None:
@@ -398,25 +399,21 @@ class PeerRecvThread(Thread):
         else:
             data_node_count = len(DataNode.fetch_all(db=self.db))
             if data_node_count > 2:
-                self.controller_inbox = ip_address
                 self.controller.peers[0].session.transfer_data(
                     REMOVE_DATA_NODE.format(ip_address=ip_address,
                                             signature=self.controller.ip_address))
 
                 self.controller.peer_transmitter.transmit(PEER_FAILURE.format(
                     failed_address=ip_address,
-                    ip_address=self.controller.ip_address
+                    reporter_address=self.controller.ip_address
                 ))
 
                 self.failure_help_found.wait()
                 new_ip_address = self.thread_inbox
-                self.thread_inbox = None
-                self.failure_help_found.clear()
 
                 if new_ip_address > self.controller.ip_address:
                     self.session = EncryptedSession(ip_address=new_ip_address, port_number=self.controller.PORT_NUMBER)
                     self.failed = False
-                    self.controller_inbox = None
                 else:
                     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     server_socket.bind((self.controller.ip_address, self.controller.PORT_NUMBER))
@@ -438,4 +435,7 @@ class PeerRecvThread(Thread):
                 self.continues = False
                 self.db.close()
 
+        self.controller_inbox = None
+        self.thread_inbox = None
+        self.failure_help_found.clear()
         print([x.session.ip_address for x in self.controller.peers])

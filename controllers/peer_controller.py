@@ -16,7 +16,8 @@ from meta_data.models.data_node import DataNode
 from servers.peer_server import PeerBroadcastServer
 from valid_messages import (INTRODUCE_PEER, CONFIRM_HANDSHAKE, MESSAGE_SEPARATOR, NULL, RESPOND_TO_BROADCAST,
                             REJECT, JOIN_NETWORK, ACCEPT, RESPOND_TO_INTRODUCTION, BLOCK_QUEUEING,
-                            UNBLOCK_QUEUEING, ABORT_JOIN, UPDATE_DATA_NODE, SEND_DB, START_CLIENT_SERVER)
+                            UNBLOCK_QUEUEING, ABORT_JOIN, UPDATE_DATA_NODE, SEND_DB, START_CLIENT_SERVER, PEER_FAILURE,
+                            RESPOND_PEER_FAILURE)
 from session.exceptions import PeerTimeOutException
 from session.sessions import SimpleSession, FileSession
 from singleton.singleton import Singleton
@@ -212,6 +213,19 @@ class PeerController(Process, metaclass=Singleton):
         suggested_peer_session.transfer_data(confirmation_message)
         print("confirmed both peers")
         return [peer_session, suggested_peer_session]
+
+    def handle_peer_failure(self, message):
+        meta_data = dict(parse.parse(PEER_FAILURE, message).named)
+        failed_address = meta_data.get("failed_address")
+        reporter_address = meta_data.get("reporter_address")
+
+        for peer in self.peers:
+            if peer.failed and peer.controller_inbox == failed_address:
+                self.peer_transmitter.transmit(RESPOND_PEER_FAILURE.format(
+                    failed_address=failed_address,
+                    reporter_address=reporter_address,
+                    self_ip_address=self.ip_address
+                ))
 
     # noinspection PyAttributeOutsideInit
     def run(self):
