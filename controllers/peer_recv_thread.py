@@ -29,7 +29,11 @@ class PeerRecvThread(Thread):
     def run(self):
         self.db = MetaDatabase()
         while self.continues:
-            message = self.session.receive_data()
+            try:
+                message = self.session.receive_data()
+            except ConnectionResetError:
+                message = None
+
             if message is None:
                 self.perform_recovery_actions()
             else:
