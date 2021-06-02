@@ -239,7 +239,6 @@ class PeerController(Process, metaclass=Singleton):
                     peer.failure_help_found.set()
                     break
 
-
     # noinspection PyAttributeOutsideInit
     def run(self):
         self.db_connection = MetaDatabase()
