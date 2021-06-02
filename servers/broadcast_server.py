@@ -253,15 +253,16 @@ class ClientThread(Thread):
             return
 
         files = directory.files
-        possible_file = list(filter(lambda x: x.title == file_name and x.extension == extension, files))
-        if len(possible_file) == 0:
+        possible_file = File.fetch_by_dir_title_extension(title=file_name, extension=extension, dir_id=directory.id,
+                                                          db=self.db_connection)
+        if possible_file is None:
             self.session.transfer_data(FILE_DOES_NOT_EXIST)
             self.session.close()
             return
 
         file = possible_file[0]
 
-        if file.get_user_permission(username) not in [Permission.READ_WRITE, Permission.READ_ONLY, Permission.OWNER]:
+        if file.get_user_permission(username) not in [Permission.READ_WRITE, Permission.WRITE_ONLY, Permission.OWNER]:
             self.session.transfer_data(NO_PERMISSION)
             self.session.close()
             return

@@ -184,13 +184,12 @@ class PeerRecvThread(Thread):
                 main_dir=Directory.fetch_user_main_directory(username=path_owner, db=self.db), path=dir_path)
 
             with self.DATABASE_LOCK:
-                possible_files = File.fetch_by_dir_title_extension(dir_id=directory.id, extension=extension,
-                                                                   title=file_name, db=self.db)
-                if possible_files is None:
-                    file = possible_files[0]
-                    for chunk in file.chunks:
+                possible_file = File.fetch_by_dir_title_extension(dir_id=directory.id, extension=extension,
+                                                                  title=file_name, db=self.db)
+                if possible_file is not None:
+                    for chunk in possible_file.chunks:
                         self.controller.client_controller_pipe.send(DELETE_CHUNK.format(path=chunk.local_path))
-                    file.delete()
+                    possible_file.delete()
 
     def create_dir(self, message):
         meta_data = dict(parse.parse(NEW_DIR, message).named)
