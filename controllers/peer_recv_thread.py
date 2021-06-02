@@ -80,10 +80,11 @@ class PeerRecvThread(Thread):
                 signature=f"{signature}-{self.controller.ip_address}"
 
             ), previous_signature=signature)
-            data_node = DataNode.fetch_by_ip(ip_address=meta_data.get("ip_address"), db=self.db)
 
-            if data_node is not None:
-                data_node.delete()
+            with self.DATABASE_LOCK:
+                data_node = DataNode.fetch_by_ip(ip_address=meta_data.get("ip_address"), db=self.db)
+                if data_node is not None:
+                    data_node.delete()
 
     def add_file_permission(self, message):
         meta_data = dict(parse.parse(NEW_FILE_PERMISSION, message).named)
@@ -112,17 +113,19 @@ class PeerRecvThread(Thread):
             directory = Directory.find_path_directory(
                 main_dir=Directory.fetch_user_main_directory(username=path_owner, db=self.db), path=dir_path)
 
-            file = list(filter(lambda x: x.title == file_name and x.extension == extension, directory.files))[0]
-            permission = Permission.fetch_by_username_file_id(username=meta_data.get("username"),
-                                                              file_id=file.id,
-                                                              db=self.db)
+            file = File.fetch_by_dir_title_extension(dir_id=directory.id, title=file_name, extension=extension,
+                                                     db=self.db)
 
-            if permission is None:
-                user = User.fetch_by_username(username=meta_data.get("username"), db=self.db)
-                Permission(db=self.db, file_id=file.id, user_id=user.id, perm=meta_data.get("perm")).save()
-            else:
-                permission.perm = meta_data.get("perm")
-                permission.save()
+            with self.DATABASE_LOCK:
+                permission = Permission.fetch_by_username_file_id(username=meta_data.get("username"),
+                                                                  file_id=file.id,
+                                                                  db=self.db)
+                if permission is None:
+                    user = User.fetch_by_username(username=meta_data.get("username"), db=self.db)
+                    Permission(db=self.db, file_id=file.id, user_id=user.id, perm=meta_data.get("perm")).save()
+                else:
+                    permission.perm = meta_data.get("perm")
+                    permission.save()
 
     def add_directory_permission(self, message):
         meta_data = dict(parse.parse(NEW_DIR_PERMISSION, message).named)
@@ -143,15 +146,17 @@ class PeerRecvThread(Thread):
             directory = Directory.find_path_directory(
                 main_dir=Directory.fetch_user_main_directory(username=path_owner, db=self.db), path=dir_path)
 
-            permission = Permission.fetch_by_username_directory_id(username=meta_data.get("username"),
-                                                                   directory_id=directory.id,
-                                                                   db=self.db)
-            if permission is None:
-                user = User.fetch_by_username(username=meta_data.get("username"), db=self.db)
-                Permission(db=self.db, directory_id=directory.id, user_id=user.id, perm=meta_data.get("perm")).save()
-            else:
-                permission.perm = meta_data.get("perm")
-                permission.save()
+            with self.DATABASE_LOCK:
+                permission = Permission.fetch_by_username_directory_id(username=meta_data.get("username"),
+                                                                       directory_id=directory.id,
+                                                                       db=self.db)
+                if permission is None:
+                    user = User.fetch_by_username(username=meta_data.get("username"), db=self.db)
+                    Permission(db=self.db, directory_id=directory.id, user_id=user.id,
+                               perm=meta_data.get("perm")).save()
+                else:
+                    permission.perm = meta_data.get("perm")
+                    permission.save()
 
     def delete_file(self, message):
         meta_data = dict(parse.parse(REMOVE_FILE, message).named)
@@ -178,13 +183,14 @@ class PeerRecvThread(Thread):
             directory = Directory.find_path_directory(
                 main_dir=Directory.fetch_user_main_directory(username=path_owner, db=self.db), path=dir_path)
 
-            possible_files = [x for x in directory.files if x.title == file_name and x.extension == extension]
-
-            if len(possible_files) != 0:
-                file = possible_files[0]
-                for chunk in file.chunks:
-                    self.controller.client_controller_pipe.send(DELETE_CHUNK.format(path=chunk.local_path))
-                file.delete()
+            with self.DATABASE_LOCK:
+                possible_files = File.fetch_by_dir_title_extension(dir_id=directory.id, extension=extension,
+                                                                   title=file_name, db=self.db)
+                if possible_files is None:
+                    file = possible_files[0]
+                    for chunk in file.chunks:
+                        self.controller.client_controller_pipe.send(DELETE_CHUNK.format(path=chunk.local_path))
+                    file.delete()
 
     def create_dir(self, message):
         meta_data = dict(parse.parse(NEW_DIR, message).named)
@@ -207,11 +213,12 @@ class PeerRecvThread(Thread):
             directory = Directory.find_path_directory(
                 main_dir=Directory.fetch_user_main_directory(username=path_owner, db=self.db), path=dir_path)
 
-            if new_dir_name not in [x.title for x in directory.children]:
-                new_dir = Directory(db=self.db, title=new_dir_name, parent_directory_id=directory.id)
-                new_dir.save()
-                Permission(db=self.db, perm=Permission.OWNER, directory_id=new_dir.id,
-                           user_id=User.fetch_by_username(username=username, db=self.db).id).save()
+            with self.DATABASE_LOCK:
+                if new_dir_name not in [x.title for x in directory.children]:
+                    new_dir = Directory(db=self.db, title=new_dir_name, parent_directory_id=directory.id)
+                    new_dir.save()
+                    Permission(db=self.db, perm=Permission.OWNER, directory_id=new_dir.id,
+                               user_id=User.fetch_by_username(username=username, db=self.db).id).save()
 
     def create_chunk(self, message):
         meta_data = dict(parse.parse(NEW_CHUNK, message).named)
@@ -235,9 +242,17 @@ class PeerRecvThread(Thread):
             file = File.fetch_by_dir_title_extension(dir_id=requested_dir.id, title=meta_data.get("title"),
                                                      extension=meta_data.get("extension"), db=self.db)
             data_node = DataNode.fetch_by_ip(meta_data.get("ip_address"), db=self.db)
-            Chunk(db=self.db, sequence=meta_data.get("sequence"), local_path=meta_data.get("destination_file_path"),
-                  chunk_size=meta_data.get("chunk_size"), data_node_id=data_node.id,
-                  file_id=file.id).save()
+
+            with self.DATABASE_LOCK:
+                possible_chunk = Chunk.fetch_by_file_id_data_node_id_sequence(file_id=file.id,
+                                                                              data_node_id=data_node.id,
+                                                                              sequence=meta_data.get("sequence"),
+                                                                              db=self.db)
+                if possible_chunk is None:
+                    Chunk(db=self.db, sequence=meta_data.get("sequence"),
+                          local_path=meta_data.get("destination_file_path"),
+                          chunk_size=meta_data.get("chunk_size"), data_node_id=data_node.id,
+                          file_id=file.id).save()
 
     def create_account(self, message):
         meta_data = dict(parse.parse(NEW_USER, message).named)
@@ -283,15 +298,17 @@ class PeerRecvThread(Thread):
             user = User.fetch_by_username(username=meta_data.get("username"), db=self.db)
             requested_dir = Directory.find_path_directory(
                 main_dir=Directory.fetch_user_main_directory(username=path_owner, db=self.db), path=path)
-            file = File.fetch_by_dir_title_extension(dir_id=requested_dir.id, extension=meta_data.get("extension"),
-                                                     title=meta_data.get("title"), db=self.db)
 
-            if file is None:
-                file = File(db=self.db, title=meta_data.get("title"), extension=meta_data.get("extension"),
-                            sequence_num=meta_data.get("sequence_num"), directory_id=requested_dir.id,
-                            is_complete=False)
-                file.save()
-                Permission(db=self.db, perm=Permission.OWNER, file_id=file.id, user_id=user.id).save()
+            with self.DATABASE_LOCK:
+                file = File.fetch_by_dir_title_extension(dir_id=requested_dir.id, extension=meta_data.get("extension"),
+                                                         title=meta_data.get("title"), db=self.db)
+
+                if file is None:
+                    file = File(db=self.db, title=meta_data.get("title"), extension=meta_data.get("extension"),
+                                sequence_num=meta_data.get("sequence_num"), directory_id=requested_dir.id,
+                                is_complete=False)
+                    file.save()
+                    Permission(db=self.db, perm=Permission.OWNER, file_id=file.id, user_id=user.id).save()
 
     def receive_db(self):
         file_session = FileSession()
@@ -311,17 +328,19 @@ class PeerRecvThread(Thread):
                 signature=f"{signature}-{self.controller.ip_address}"
             ), previous_signature=signature)
 
-            data_node = DataNode.fetch_by_ip(meta_data.get("ip_address"), self.db)
-            if data_node is None:
-                data_node = DataNode(db=self.db, ip_address=meta_data["ip_address"],
-                                     rack_number=meta_data.get("rack_number"),
-                                     available_byte_size=meta_data.get("available_byte_size"), last_seen=monotonic())
-            else:
-                data_node.available_byte_size = meta_data.get("available_byte_size")
-                data_node.rack_number = meta_data.get("rack_number")
-                data_node.last_seen = monotonic()
+            with self.DATABASE_LOCK:
+                data_node = DataNode.fetch_by_ip(meta_data.get("ip_address"), self.db)
+                if data_node is None:
+                    data_node = DataNode(db=self.db, ip_address=meta_data["ip_address"],
+                                         rack_number=meta_data.get("rack_number"),
+                                         available_byte_size=meta_data.get("available_byte_size"),
+                                         last_seen=monotonic())
+                else:
+                    data_node.available_byte_size = meta_data.get("available_byte_size")
+                    data_node.rack_number = meta_data.get("rack_number")
+                    data_node.last_seen = monotonic()
 
-            data_node.save()
+                data_node.save()
 
     def add_peer(self, message):
         ip_address = dict(parse.parse(INTRODUCE_PEER, message).named)["ip_address"]
@@ -339,10 +358,11 @@ class PeerRecvThread(Thread):
         handshake_confirmation = new_session.receive_data()
         print(f"Thread got handshake {handshake_confirmation}")
         meta_data = dict(parse.parse(CONFIRM_HANDSHAKE, handshake_confirmation).named)
-        data_node = DataNode(db=self.db, ip_address=ip_address,
-                             available_byte_size=meta_data["available_byte_size"],
-                             rack_number=meta_data["rack_number"], last_seen=monotonic())
-        data_node.save()
+        with self.DATABASE_LOCK:
+            data_node = DataNode(db=self.db, ip_address=ip_address,
+                                 available_byte_size=meta_data["available_byte_size"],
+                                 rack_number=meta_data["rack_number"], last_seen=monotonic())
+            data_node.save()
 
         if len(self.controller.peers) == 1:
             thread = PeerRecvThread(session=new_session, controller=self.controller)
