@@ -1,4 +1,4 @@
-from threading import Thread
+from threading import Thread, Lock
 from time import monotonic
 
 import parse
@@ -19,6 +19,8 @@ from session.sessions import SimpleSession, FileSession, EncryptedSession
 
 
 class PeerRecvThread(Thread):
+    DATABASE_LOCK = Lock()
+
     def __init__(self, session: EncryptedSession, controller, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.session = session
@@ -249,10 +251,13 @@ class PeerRecvThread(Thread):
                 signature=f"{signature}-{self.controller.ip_address}"
             ), previous_signature=signature)
 
-            user = User.fetch_by_username(username=username, db=self.db)
-            if user is None:
-                user = User(db=self.db, username=username, password=password)
-                user.save()
+            with self.DATABASE_LOCK:
+                possible_user = User.fetch_by_username(username=username, db=self.db)
+                if possible_user is None:
+                    user = User(db=self.db, username=username, password=password)
+                    user.save()
+
+            if possible_user is None:
                 main_directory = Directory(db=self.db, title=Directory.MAIN_DIR_NAME, parent_directory_id=None)
                 main_directory.save()
                 permission = Permission(db=self.db, directory_id=main_directory.id, user_id=user.id,
