@@ -210,6 +210,7 @@ class ClientActions:
         chunk_list = pickle.loads(response)
         chunk_list.sort(key=lambda x: x[0])
         print(chunk_list)
+        print("Receiving the file...")
 
         """
                 chunk list's structure is as followed:

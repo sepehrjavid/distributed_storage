@@ -10,7 +10,8 @@ from valid_messages import UPDATE_DATA_NODE, MESSAGE_SEPARATOR
 
 class Storage(metaclass=Singleton):
     # CHUNK_SIZE = 64 * (10 ** 6)
-    CHUNK_SIZE = 100000
+    CHUNK_SIZE = 10 ** 6
+    # CHUNK_SIZE = 100000
     REPLICATION_FACTOR = 3
 
     def __init__(self, storage_path, current_data_node, controller, *args, **kwargs):
