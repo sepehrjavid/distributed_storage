@@ -84,9 +84,9 @@ class Storage(metaclass=Singleton):
             os.remove(path)
             self.update_byte_size(chunk_size, db)
 
-    def get_replication_data_nodes(self, chunk_size):
-        all_data_nodes = DataNode.fetch_all()
-        other_data_nodes = list(filter(lambda x: x.id != self.current_data_node.id, all_data_nodes))
+    def get_replication_data_nodes(self, chunk_size, db: MetaDatabase):
+        all_data_nodes = DataNode.fetch_all(db=db)
+        other_data_nodes = [x for x in all_data_nodes if x.id != self.current_data_node.id]
         racks = {}
 
         for data_node in other_data_nodes:

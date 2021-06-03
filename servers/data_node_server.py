@@ -2,12 +2,13 @@ import os
 
 from meta_data.database import MetaDatabase
 from meta_data.models.chunk import Chunk
+from meta_data.models.data_node import DataNode
 from meta_data.models.directory import Directory
 from meta_data.models.file import File
 from meta_data.models.permission import Permission
 from valid_messages import (CREATE_CHUNK, INVALID_METADATA, MESSAGE_SEPARATOR, OUT_OF_SPACE,
                             ACCEPT, REJECT, NEW_CHUNK, NO_PERMISSION, DUPLICATE_CHUNK_FOR_FILE, GET_CHUNK,
-                            CHUNK_NOT_FOUND, INVALID_PATH)
+                            CHUNK_NOT_FOUND, INVALID_PATH, REPLICATE_CHUNK)
 from session.sessions import EncryptedSession, FileSession
 from singleton.singleton import Singleton
 from threading import Thread, Lock
@@ -86,6 +87,57 @@ class ClientThread(Thread):
             self.create_chunk(message)
         elif command == GET_CHUNK.split(MESSAGE_SEPARATOR)[0]:
             self.get_chunk(message)
+        elif command == REPLICATE_CHUNK.split(MESSAGE_SEPARATOR)[0]:
+            self.replicate(MESSAGE_SEPARATOR.join(message.split(MESSAGE_SEPARATOR)[1:]))
+
+    def replicate(self, message):
+        if self.client_data["ip_address"] not in [x.ip_address for x in DataNode.fetch_all(db=self.db)]:
+            self.session.transfer_data(REJECT)
+            self.session.close()
+            return
+
+        meta_data = dict(parse.parse(CREATE_CHUNK, message).named)
+
+        try:
+            self.storage.update_byte_size(-int(meta_data.get("chunk_size")), self.db)
+        except NotEnoughSpace:
+            self.session.transfer_data(OUT_OF_SPACE)
+            self.session.close()
+            return
+
+        path_owner = meta_data.get("path").split("/")[0]
+        path = "/".join(meta_data.get("path").split("/")[1:])
+
+        requested_dir = Directory.find_path_directory(
+            main_dir=Directory.fetch_user_main_directory(username=path_owner, db=self.db), path=path)
+
+        file = File.fetch_by_dir_title_extension(dir_id=requested_dir.id, title=meta_data.get("title"),
+                                                 extension=meta_data.get("extension"), db=self.db)
+        if file is None:
+            self.session.transfer_data(REJECT)
+            self.session.close()
+
+        self.session.transfer_data(ACCEPT)
+
+        destination_file_path = self.storage.get_new_file_path()
+        file_session = FileSession()
+        file_session.receive_file(destination_file_path, session=self.session)
+        self.session.close()
+
+        Chunk(db=self.db, sequence=meta_data.get("sequence"), local_path=destination_file_path,
+              chunk_size=meta_data.get("chunk_size"), data_node_id=self.storage.current_data_node.id,
+              file_id=file.id).save()
+
+        self.storage.controller.inform_modification(
+            NEW_CHUNK.format(ip_address=self.storage.current_data_node.ip_address,
+                             sequence=meta_data.get("sequence"),
+                             chunk_size=meta_data.get("chunk_size"),
+                             path=meta_data.get("path"),
+                             title=meta_data.get("title"),
+                             extension=meta_data.get("extension"),
+                             destination_file_path=destination_file_path,
+                             signature=self.ip_address
+                             ))
 
     def get_chunk(self, message):
         meta_data = dict(parse.parse(GET_CHUNK, message).named)
@@ -178,7 +230,9 @@ class ClientThread(Thread):
 
         destination_file_path = self.storage.get_new_file_path()
         file_session = FileSession()
-        file_session.receive_file(destination_file_path, session=self.session)
+        file_session.receive_file(destination_file_path, session=self.session,
+                                  replication_list=self.storage.get_replication_data_nodes(),
+                                  create_chunk_message=message)
         self.session.close()
 
         Chunk(db=self.db, sequence=meta_data.get("sequence"), local_path=destination_file_path,
