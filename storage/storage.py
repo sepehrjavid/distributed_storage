@@ -95,18 +95,32 @@ class Storage(metaclass=Singleton):
             racks[data_node.rack_number].append(data_node)
 
         if len(racks) == 1:
-            return racks[self.current_data_node.rack_number][:self.REPLICATION_FACTOR - 1]
+            result = []
+            for data_node in racks[self.current_data_node.rack_number]:
+                if data_node.available_byte_size > chunk_size:
+                    result.append(data_node)
+            return result[:self.REPLICATION_FACTOR - 1]
 
         result = []
+        maximum_rack_node = max([len(x) for x in racks])
         i = 0
-        while len(result) < self.REPLICATION_FACTOR - 1:
+        while len(result) < self.REPLICATION_FACTOR - 1 and i < maximum_rack_node:
             for rack_number in racks:
                 if len(result) == self.REPLICATION_FACTOR - 1:
                     return result
 
-                if self.current_data_node.rack_number != rack_number:
-                    result.append(racks[rack_number][i])
-
+                try:
+                    if self.current_data_node.rack_number != rack_number and chunk_size < racks[rack_number][
+                    i].available_byte_size:
+                        result.append(racks[rack_number][i])
+                except IndexError:
+                    pass
             i += 1
 
-        return result
+        add_on = []
+        if len(result) < self.REPLICATION_FACTOR - 1:
+            for data_node in racks[self.current_data_node.rack_number]:
+                if data_node.available_byte_size > chunk_size:
+                    add_on.append(data_node)
+
+        return result + add_on[:self.REPLICATION_FACTOR - 1 - len(result)]
