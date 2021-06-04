@@ -3,7 +3,6 @@ import socket
 from threading import Thread, Lock, Condition
 
 from encryption.encryptors import RSAEncryption
-from servers.data_node_server import DataNodeServer
 from session.exceptions import PeerTimeOutException
 from valid_messages import REPLICATE_CHUNK, ACCEPT
 
@@ -155,6 +154,7 @@ class FileSession:
                 bytes_read += len(data)
 
     def replicate_chunk(self, ip_address, create_chunk_message, chunk_size):
+        from servers.data_node_server import DataNodeServer
         session = EncryptedSession(ip_address=ip_address, port_number=DataNodeServer.DATA_NODE_PORT_NUMBER)
         session.transfer_data(REPLICATE_CHUNK.format(create_chunk_message=create_chunk_message))
         response = session.receive_data()
@@ -181,6 +181,7 @@ class FileSession:
         replication_threads = []
 
         if replicate:
+            print("Replication list is: ", replication_list)
             for ip_address in replication_list:
                 replication_threads.append(Thread(target=self.replicate_chunk,
                                                   args=[ip_address, create_chunk_message, file_size]))
