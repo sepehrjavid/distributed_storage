@@ -231,7 +231,8 @@ class ClientThread(Thread):
         destination_file_path = self.storage.get_new_file_path()
         file_session = FileSession()
         file_session.receive_file(destination_file_path, session=self.session,
-                                  replication_list=self.storage.get_replication_data_nodes(),
+                                  replication_list=self.storage.get_replication_data_nodes(
+                                      chunk_size=int(meta_data.get("chunk_size")), db=self.db),
                                   create_chunk_message=message)
         self.session.close()
 
