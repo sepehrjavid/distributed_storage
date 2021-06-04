@@ -175,7 +175,7 @@ class FileSession:
 
     def receive_file(self, dest_path, session, replication_list=None, create_chunk_message=None):
         self.replication_storage = []
-        replicate = replication_list is not None and create_chunk_message is not None
+        replicate = replication_list is not None and len(replication_list) != 0 and create_chunk_message is not None
         file_size = int(session.receive_data())
         received = 0
         replication_threads = []
