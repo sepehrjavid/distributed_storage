@@ -79,4 +79,4 @@ class ClientController(Process, metaclass=Singleton):
                 if command == DELETE_CHUNK.split(MESSAGE_SEPARATOR)[0]:
                     meta_data = dict(parse.parse(DELETE_CHUNK, msg).named)
                     self.storage.remove_chunk_file(path=meta_data.get("path"), db=db)
-            sleep(5)
+            sleep(3)

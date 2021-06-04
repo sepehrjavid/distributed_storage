@@ -14,13 +14,13 @@ class Storage(metaclass=Singleton):
     # CHUNK_SIZE = 100000
     REPLICATION_FACTOR = 3
 
-    def __init__(self, storage_path, current_data_node, controller, *args, **kwargs):
+    def __init__(self, storage_path, current_data_node: DataNode, controller, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.storage_path = storage_path
         self.db = MetaDatabase()
         self.controller = controller
 
-        if isinstance(current_data_node, DataNode) and DataNode.fetch_by_id(current_data_node.id, self.db) is not None:
+        if DataNode.fetch_by_ip(current_data_node.ip_address, self.db) is not None:
             self.current_data_node = current_data_node
         elif current_data_node is not None:
             raise DataNodeNotSaved
@@ -84,9 +84,9 @@ class Storage(metaclass=Singleton):
             os.remove(path)
             self.update_byte_size(chunk_size, db)
 
-    def get_replication_data_nodes(self, chunk_size):
-        all_data_nodes = DataNode.fetch_all()
-        other_data_nodes = list(filter(lambda x: x.id != self.current_data_node.id, all_data_nodes))
+    def get_replication_data_nodes(self, chunk_size, db: MetaDatabase):
+        all_data_nodes = DataNode.fetch_all(db=db)
+        other_data_nodes = [x for x in all_data_nodes if x.id != self.current_data_node.id]
         racks = {}
 
         for data_node in other_data_nodes:
@@ -95,18 +95,37 @@ class Storage(metaclass=Singleton):
             racks[data_node.rack_number].append(data_node)
 
         if len(racks) == 1:
-            return racks[self.current_data_node.rack_number][:self.REPLICATION_FACTOR - 1]
+            result = []
+            for data_node in racks[other_data_nodes[0].rack_number]:
+                if data_node.available_byte_size > chunk_size:
+                    result.append(data_node)
+            return [x.ip_address for x in result[:self.REPLICATION_FACTOR - 1]]
 
         result = []
+        maximum_rack_node = max([len(racks[x]) for x in racks])
         i = 0
-        while len(result) < self.REPLICATION_FACTOR - 1:
+        while len(result) < self.REPLICATION_FACTOR - 1 and i < maximum_rack_node:
             for rack_number in racks:
                 if len(result) == self.REPLICATION_FACTOR - 1:
-                    return result
+                    return [x.ip_address for x in result]
 
-                if self.current_data_node.rack_number != rack_number:
-                    result.append(racks[rack_number][i])
-
+                try:
+                    if self.current_data_node.rack_number != rack_number and \
+                            chunk_size < racks[rack_number][i].available_byte_size:
+                        result.append(racks[rack_number][i])
+                except IndexError:
+                    pass
             i += 1
 
-        return result
+        add_on = []
+        if len(result) < self.REPLICATION_FACTOR - 1:
+            try:
+                current_rack_nodes = racks[self.current_data_node.rack_number]
+            except KeyError:
+                return [x.ip_address for x in result]
+
+            for data_node in current_rack_nodes:
+                if data_node.available_byte_size > chunk_size:
+                    add_on.append(data_node)
+
+        return [x.ip_address for x in result + add_on[:self.REPLICATION_FACTOR - 1 - len(result)]]
