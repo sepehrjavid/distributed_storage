@@ -80,3 +80,4 @@ Inter-Process Communication
 
 START_CLIENT_SERVER = "start"
 DELETE_CHUNK = "delc-{path}"
+NAME_NODE_STATUS = "name_node-{status}"

@@ -17,7 +17,7 @@ from servers.peer_server import PeerBroadcastServer
 from valid_messages import (INTRODUCE_PEER, CONFIRM_HANDSHAKE, MESSAGE_SEPARATOR, NULL, RESPOND_TO_BROADCAST,
                             REJECT, JOIN_NETWORK, ACCEPT, RESPOND_TO_INTRODUCTION, BLOCK_QUEUEING,
                             UNBLOCK_QUEUEING, ABORT_JOIN, UPDATE_DATA_NODE, SEND_DB, START_CLIENT_SERVER, PEER_FAILURE,
-                            RESPOND_PEER_FAILURE)
+                            RESPOND_PEER_FAILURE, NAME_NODE_STATUS)
 from session.exceptions import PeerTimeOutException
 from session.sessions import SimpleSession, FileSession
 from singleton.singleton import Singleton
@@ -46,6 +46,7 @@ class PeerController(Process, metaclass=Singleton):
         self.client_controller_pipe = client_controller_pipe
         self.peers = []
         self.broadcast_server = PeerBroadcastServer(broadcast_address=self.broadcast_address, peer_controller=self)
+        self.is_name_node = False
 
     def update_config_file(self):
         with open(self.CONFIG_FILE_PATH, "r") as config_file:
@@ -55,6 +56,10 @@ class PeerController(Process, metaclass=Singleton):
             config = config[:-2] + config[-1]
 
         self.config = self.parse_config(config)
+
+    def toggle_is_name_node(self):
+        self.is_name_node = not self.is_name_node
+        self.client_controller_pipe.send(NAME_NODE_STATUS.format(status=self.is_name_node))
 
     @staticmethod
     def parse_config(config):

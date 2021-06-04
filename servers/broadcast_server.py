@@ -23,7 +23,6 @@ from singleton.singleton import Singleton
 
 
 class BroadcastServer(SimpleBroadcastServer, metaclass=Singleton):
-    MAXIMUM_CLIENT_ALLOWED = 30
     MAXIMUM_CLIENT_HANDLE_TIME = 4 * 60
     CONTROLLER_INTERVAL = 5
     BROADCAST_SERVER_PORT_NUMBER = 54222
@@ -37,24 +36,23 @@ class BroadcastServer(SimpleBroadcastServer, metaclass=Singleton):
         self.storage = storage
 
     def on_receive(self, source_address, data):
-        with self.active_clients_lock:
-            if len(self.active_clients) >= self.MAXIMUM_CLIENT_ALLOWED:
-                return
-            for client in self.active_clients:
-                if client["ip_address"] == source_address:
-                    return
+        if self.storage.controller.is_name_node:
+            with self.active_clients_lock:
+                for client in self.active_clients:
+                    if client["ip_address"] == source_address:
+                        return
 
-        client_data = {
-            "ip_address": source_address[0],
-            "start_time": time(),
-            "command": data.decode()
-        }
+            client_data = {
+                "ip_address": source_address[0],
+                "start_time": time(),
+                "command": data.decode()
+            }
 
-        client_data["thread"] = ClientThread(client_data, self.storage)
-        client_data["thread"].start()
+            client_data["thread"] = ClientThread(client_data, self.storage)
+            client_data["thread"].start()
 
-        with self.active_clients_lock:
-            self.active_clients.append(client_data)
+            with self.active_clients_lock:
+                self.active_clients.append(client_data)
 
     def __remove_expired_clients(self):
         with self.active_clients_lock:

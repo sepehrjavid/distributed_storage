@@ -13,7 +13,7 @@ from servers.broadcast_server import BroadcastServer
 from servers.data_node_server import DataNodeServer
 from singleton.singleton import Singleton
 from storage.storage import Storage
-from valid_messages import START_CLIENT_SERVER, DELETE_CHUNK, MESSAGE_SEPARATOR
+from valid_messages import START_CLIENT_SERVER, DELETE_CHUNK, MESSAGE_SEPARATOR, NAME_NODE_STATUS
 
 
 class ClientController(Process, metaclass=Singleton):
@@ -36,6 +36,7 @@ class ClientController(Process, metaclass=Singleton):
         self.broadcast_server = None
         self.data_node_server_thread = None
         self.peer_controller_message_handler_thread = None
+        self.is_name_node = False
 
     def update_config_file(self):
         with open(PeerController.CONFIG_FILE_PATH, "r") as config_file:
@@ -79,4 +80,7 @@ class ClientController(Process, metaclass=Singleton):
                 if command == DELETE_CHUNK.split(MESSAGE_SEPARATOR)[0]:
                     meta_data = dict(parse.parse(DELETE_CHUNK, msg).named)
                     self.storage.remove_chunk_file(path=meta_data.get("path"), db=db)
-            sleep(3)
+                if command == NAME_NODE_STATUS.split(MESSAGE_SEPARATOR)[0]:
+                    meta_data = dict(parse.parse(NAME_NODE_STATUS, msg).named)
+                    self.is_name_node = bool(meta_data.get("status"))
+            sleep(2)
