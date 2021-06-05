@@ -401,7 +401,7 @@ class PeerRecvThread(Thread):
             if not self.controller.is_name_node:
                 self.controller.peer_transmitter.transmit(NAME_NODE_DOWN)
 
-        if len(self.controller.peers) == 0:
+        if len(self.controller.peers) == 1:
             self.continues = False
             self.db.close()
             self.controller.peers.remove(self)
