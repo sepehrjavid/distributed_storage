@@ -75,6 +75,7 @@ class Storage(metaclass=Singleton):
             UPDATE_DATA_NODE.format(available_byte_size=self.current_data_node.available_byte_size,
                                     ip_address=self.current_data_node.ip_address,
                                     rack_number=self.current_data_node.rack_number,
+                                    priority=self.current_data_node.priority,
                                     signature=self.current_data_node.ip_address
                                     ))
 

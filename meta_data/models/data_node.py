@@ -42,7 +42,6 @@ class DataNode:
 
         data_nodes = []
         for data_node in sql_result:
-            print(data_node)
             data_nodes.append(DataNode(db=db, id=data_node[0], ip_address=data_node[1], rack_number=data_node[2],
                                        priority=data_node[3], available_byte_size=data_node[4],
                                        last_seen=float(data_node[5])))
