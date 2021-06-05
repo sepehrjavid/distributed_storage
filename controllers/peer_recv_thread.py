@@ -321,6 +321,7 @@ class PeerRecvThread(Thread):
         self.controller.client_controller_pipe.send(START_CLIENT_SERVER)
         self.controller.peer_transmitter.transmit(UNBLOCK_QUEUEING)
         self.controller.release_queue_lock()
+        self.controller.update_name_node_ip_address(db=self.db)
 
     def update_data_node(self, message):
         meta_data = dict(parse.parse(UPDATE_DATA_NODE, message).named)
@@ -337,16 +338,16 @@ class PeerRecvThread(Thread):
             with self.DATABASE_LOCK:
                 data_node = DataNode.fetch_by_ip(meta_data.get("ip_address"), self.db)
                 if data_node is None:
-                    data_node = DataNode(db=self.db, ip_address=meta_data.get("ip_address"),
-                                         rack_number=meta_data.get("rack_number"),
-                                         available_byte_size=meta_data.get("available_byte_size"),
-                                         last_seen=monotonic(), priority=meta_data.get("priority"))
+                    DataNode(db=self.db, ip_address=meta_data.get("ip_address"),
+                             rack_number=meta_data.get("rack_number"),
+                             available_byte_size=meta_data.get("available_byte_size"),
+                             last_seen=monotonic(), priority=meta_data.get("priority")).save()
+                    self.controller.update_name_node_ip_address(db=self.db)
                 else:
                     data_node.available_byte_size = meta_data.get("available_byte_size")
                     data_node.rack_number = meta_data.get("rack_number")
                     data_node.last_seen = monotonic()
-
-                data_node.save()
+                    data_node.save()
 
     def add_peer(self, message):
         ip_address = dict(parse.parse(INTRODUCE_PEER, message).named)["ip_address"]
@@ -370,6 +371,7 @@ class PeerRecvThread(Thread):
                                  rack_number=meta_data.get("rack_number"), priority=meta_data.get("priority"),
                                  last_seen=monotonic())
             data_node.save()
+        self.controller.update_name_node_ip_address(db=self.db)
 
         if len(self.controller.peers) == 1:
             thread = PeerRecvThread(session=new_session, controller=self.controller)

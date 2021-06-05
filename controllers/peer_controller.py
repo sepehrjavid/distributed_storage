@@ -55,7 +55,7 @@ class PeerController(Process, metaclass=Singleton):
     def is_name_node(self):
         return self.name_node_ip_address == self.ip_address
 
-    def set_name_node_ip_address(self, db: MetaDatabase):
+    def update_name_node_ip_address(self, db: MetaDatabase):
         self.name_node_ip_address = self.find_name_node(db=db)
         self.update_client_controller_is_name_node()
 
@@ -157,6 +157,7 @@ class PeerController(Process, metaclass=Singleton):
                              rack_number=meta_data.get("rack_number"), priority=meta_data.get("priority"),
                              last_seen=monotonic())
         data_node.save()
+        self.update_name_node_ip_address(db=self.db_connection)
 
         if len(self.peers) > 1:
             self.peers[1].session.transfer_data(
@@ -286,6 +287,7 @@ class PeerController(Process, metaclass=Singleton):
                      available_byte_size=self.available_byte_size, last_seen=monotonic(),
                      priority=self.priority).save()
             self.client_controller_pipe.send(START_CLIENT_SERVER)
+            self.update_name_node_ip_address(db=self.db_connection)
 
         self.storage_communicator_thread.start()
         print("Storage communicator started")

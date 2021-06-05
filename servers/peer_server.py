@@ -1,6 +1,6 @@
 from broadcast.servers import SimpleBroadcastServer
-from valid_messages import JOIN_NETWORK, UNBLOCK_QUEUEING, BLOCK_QUEUEING, PEER_FAILURE, MESSAGE_SEPARATOR, \
-    RESPOND_PEER_FAILURE
+from valid_messages import (JOIN_NETWORK, UNBLOCK_QUEUEING, BLOCK_QUEUEING, PEER_FAILURE, MESSAGE_SEPARATOR,
+                            RESPOND_PEER_FAILURE)
 from singleton.singleton import Singleton
 
 
