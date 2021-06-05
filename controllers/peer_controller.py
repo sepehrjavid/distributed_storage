@@ -78,7 +78,7 @@ class PeerController(Process, metaclass=Singleton):
         highest_priority = min([x.priority for x in all_nodes])
         candidates = [x for x in all_nodes if x.priority == highest_priority]
         candidates.sort(key=lambda x: x.ip_address)
-        return candidates[0]
+        return candidates[0].ip_address
 
     @staticmethod
     def parse_config(config):
