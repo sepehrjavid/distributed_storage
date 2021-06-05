@@ -49,7 +49,15 @@ class PeerController(Process, metaclass=Singleton):
         self.client_controller_pipe = client_controller_pipe
         self.peers = []
         self.broadcast_server = PeerBroadcastServer(broadcast_address=self.broadcast_address, peer_controller=self)
-        self.is_name_node = False
+        self.name_node_ip_address = None
+
+    @property
+    def is_name_node(self):
+        return self.name_node_ip_address == self.ip_address
+
+    def set_name_node_ip_address(self, db: MetaDatabase):
+        self.name_node_ip_address = self.find_name_node(db=db)
+        self.update_client_controller_is_name_node()
 
     def update_config_file(self):
         with open(self.CONFIG_FILE_PATH, "r") as config_file:
@@ -60,13 +68,16 @@ class PeerController(Process, metaclass=Singleton):
 
         self.config = self.parse_config(config)
 
-    def toggle_is_name_node(self):
-        self.is_name_node = not self.is_name_node
+    def update_client_controller_is_name_node(self):
         self.client_controller_pipe.send(NAME_NODE_STATUS.format(status=self.is_name_node))
 
-    def find_name_node(self, db: MetaDatabase):
+    @staticmethod
+    def find_name_node(db: MetaDatabase):
         all_nodes = DataNode.fetch_all(db=db)
-        highest_priority = min([])  # TODO to be continued
+        highest_priority = min([x.priority for x in all_nodes])
+        candidates = [x for x in all_nodes if x.priority == highest_priority]
+        candidates.sort(key=lambda x: x.ip_address)
+        return candidates[0]
 
     @staticmethod
     def parse_config(config):
