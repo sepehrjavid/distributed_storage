@@ -87,6 +87,7 @@ class ClientActions:
             except socket.timeout:
                 transmitter.transmit(message)
 
+        print(f"Served by: {addr}")
         return EncryptedSession(input_socket=client_socket, is_server=True)
 
     def create_account(self):

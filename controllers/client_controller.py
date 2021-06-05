@@ -78,4 +78,4 @@ class ClientController(Process, metaclass=Singleton):
                 self.storage.remove_chunk_file(path=meta_data.get("path"), db=db)
             if command == NAME_NODE_STATUS.split(MESSAGE_SEPARATOR)[0]:
                 meta_data = dict(parse.parse(NAME_NODE_STATUS, msg).named)
-                self.is_name_node = bool(meta_data.get("status"))
+                self.is_name_node = eval(meta_data.get("status"))
