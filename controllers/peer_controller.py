@@ -9,7 +9,7 @@ from time import monotonic, sleep
 import parse
 
 from broadcast.transmitters import SimpleTransmitter
-from controllers.exceptions import InvalidDataNodeConfigFile
+from controllers.exceptions import InvalidDataNodeConfigFile, InvalidValueForConfigFiled
 from controllers.peer_recv_thread import PeerRecvThread
 from meta_data.database import MetaDatabase
 from meta_data.models.data_node import DataNode
@@ -17,7 +17,7 @@ from servers.peer_server import PeerBroadcastServer
 from valid_messages import (INTRODUCE_PEER, CONFIRM_HANDSHAKE, MESSAGE_SEPARATOR, NULL, RESPOND_TO_BROADCAST,
                             REJECT, JOIN_NETWORK, ACCEPT, RESPOND_TO_INTRODUCTION, BLOCK_QUEUEING,
                             UNBLOCK_QUEUEING, ABORT_JOIN, UPDATE_DATA_NODE, SEND_DB, START_CLIENT_SERVER, PEER_FAILURE,
-                            RESPOND_PEER_FAILURE)
+                            RESPOND_PEER_FAILURE, NAME_NODE_STATUS)
 from session.exceptions import PeerTimeOutException
 from session.sessions import SimpleSession, FileSession
 from singleton.singleton import Singleton
@@ -28,7 +28,7 @@ class PeerController(Process, metaclass=Singleton):
     CONFIG_FILE_PATH = "dfs.conf"
     SOCKET_ACCEPT_TIMEOUT = 3
     JOIN_TRY_LIMIT = 3
-    MANDATORY_FIELDS = ["ip_address", "network_id", "rack_number", "available_byte_size", "path"]
+    MANDATORY_FIELDS = ["ip_address", "network_id", "rack_number", "available_byte_size", "path", "priority"]
 
     def __init__(self, client_controller_pipe: Connection, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -37,7 +37,10 @@ class PeerController(Process, metaclass=Singleton):
         print("DFS configuration loaded successfully")
         self.ip_address = self.config.get("ip_address")
         self.network_id = self.config.get("network_id")
-        self.rack_number = self.config.get("rack_number")
+        self.rack_number = int(self.config.get("rack_number"))
+        self.priority = int(self.config.get("priority"))
+        if self.priority < 0:
+            raise InvalidValueForConfigFiled("priority")
         self.available_byte_size = self.config.get("available_byte_size")
         self.broadcast_address = str(ipaddress.ip_network(self.network_id).broadcast_address)
         self.peer_transmitter = SimpleTransmitter(broadcast_address=self.broadcast_address,
@@ -46,6 +49,7 @@ class PeerController(Process, metaclass=Singleton):
         self.client_controller_pipe = client_controller_pipe
         self.peers = []
         self.broadcast_server = PeerBroadcastServer(broadcast_address=self.broadcast_address, peer_controller=self)
+        self.name_node_ip_address = None
 
     def update_config_file(self):
         with open(self.CONFIG_FILE_PATH, "r") as config_file:
@@ -55,6 +59,26 @@ class PeerController(Process, metaclass=Singleton):
             config = config[:-2] + config[-1]
 
         self.config = self.parse_config(config)
+
+    @property
+    def is_name_node(self):
+        return self.name_node_ip_address == self.ip_address
+
+    def update_name_node_ip_address(self, db: MetaDatabase):
+        self.name_node_ip_address = self.find_name_node(db=db)
+        self.update_client_controller_is_name_node()
+        print(f"Name node updated to {self.name_node_ip_address}")
+
+    def update_client_controller_is_name_node(self):
+        self.client_controller_pipe.send(NAME_NODE_STATUS.format(status=self.is_name_node))
+
+    @staticmethod
+    def find_name_node(db: MetaDatabase):
+        all_nodes = DataNode.fetch_all(db=db)
+        highest_priority = min([x.priority for x in all_nodes])
+        candidates = [x for x in all_nodes if x.priority == highest_priority]
+        candidates.sort(key=lambda x: x.ip_address)
+        return candidates[0].ip_address
 
     @staticmethod
     def parse_config(config):
@@ -130,14 +154,17 @@ class PeerController(Process, metaclass=Singleton):
 
         meta_data = dict(parse.parse(CONFIRM_HANDSHAKE, handshake_confirmation).named)
         data_node = DataNode(db=self.db_connection, ip_address=ip_address,
-                             available_byte_size=meta_data["available_byte_size"],
-                             rack_number=meta_data["rack_number"], last_seen=monotonic())
+                             available_byte_size=meta_data.get("available_byte_size"),
+                             rack_number=meta_data.get("rack_number"), priority=meta_data.get("priority"),
+                             last_seen=monotonic())
         data_node.save()
+        self.update_name_node_ip_address(db=self.db_connection)
 
         if len(self.peers) > 1:
             self.peers[1].session.transfer_data(
-                UPDATE_DATA_NODE.encode(ip_address=data_node.ip_address, rack_number=data_node.rack_number,
-                                        available_byte_size=data_node.available_byte_size, signature=self.ip_address))
+                UPDATE_DATA_NODE.format(ip_address=data_node.ip_address, rack_number=data_node.rack_number,
+                                        priority=data_node.priority, available_byte_size=data_node.available_byte_size,
+                                        signature=self.ip_address))
             lost_peer = self.peers.pop(0)
             lost_peer.join()
 
@@ -153,6 +180,7 @@ class PeerController(Process, metaclass=Singleton):
 
     def join_network(self) -> list:
         confirmation_message = CONFIRM_HANDSHAKE.format(available_byte_size=self.available_byte_size,
+                                                        priority=self.priority,
                                                         rack_number=self.rack_number)
 
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -257,8 +285,10 @@ class PeerController(Process, metaclass=Singleton):
         if len(self.peers) == 0:
             MetaDatabase.initialize_tables()
             DataNode(db=self.db_connection, ip_address=self.ip_address, rack_number=self.rack_number,
-                     available_byte_size=self.available_byte_size, last_seen=monotonic()).save()
+                     available_byte_size=self.available_byte_size, last_seen=monotonic(),
+                     priority=self.priority).save()
             self.client_controller_pipe.send(START_CLIENT_SERVER)
+            self.update_name_node_ip_address(db=self.db_connection)
 
         self.storage_communicator_thread.start()
         print("Storage communicator started")

@@ -21,7 +21,6 @@ from storage.exceptions import NotEnoughSpace
 
 class DataNodeServer(metaclass=Singleton):
     DATA_NODE_PORT_NUMBER = 54223
-    MAXIMUM_CLIENT_ALLOWED = 30
     MAXIMUM_CLIENT_HANDLE_TIME = 5 * 60
     CONTROLLER_INTERVAL = 10
 
@@ -51,9 +50,6 @@ class DataNodeServer(metaclass=Singleton):
         self.server_socket.listen(5)
         while True:
             client_socket, addr = self.server_socket.accept()
-            with self.active_clients_lock:
-                if len(self.active_clients) >= self.MAXIMUM_CLIENT_ALLOWED:
-                    return
 
             client_data = {
                 "ip_address": addr[0],

@@ -14,7 +14,7 @@ from meta_data.models.user import User
 from valid_messages import (CONFIRM_HANDSHAKE, STOP_FRIENDSHIP, RESPOND_TO_INTRODUCTION, ACCEPT, INTRODUCE_PEER,
                             MESSAGE_SEPARATOR, SEND_DB, UPDATE_DATA_NODE, UNBLOCK_QUEUEING, START_CLIENT_SERVER,
                             NEW_USER, NEW_FILE, NEW_CHUNK, NEW_DIR, REMOVE_FILE, NEW_FILE_PERMISSION,
-                            NEW_DIR_PERMISSION, DELETE_CHUNK, REMOVE_DATA_NODE, PEER_FAILURE)
+                            NEW_DIR_PERMISSION, DELETE_CHUNK, REMOVE_DATA_NODE, PEER_FAILURE, NAME_NODE_DOWN)
 from session.exceptions import PeerTimeOutException
 from session.sessions import SimpleSession, FileSession, EncryptedSession
 
@@ -321,6 +321,7 @@ class PeerRecvThread(Thread):
         self.controller.client_controller_pipe.send(START_CLIENT_SERVER)
         self.controller.peer_transmitter.transmit(UNBLOCK_QUEUEING)
         self.controller.release_queue_lock()
+        self.controller.update_name_node_ip_address(db=self.db)
 
     def update_data_node(self, message):
         meta_data = dict(parse.parse(UPDATE_DATA_NODE, message).named)
@@ -330,22 +331,23 @@ class PeerRecvThread(Thread):
                 ip_address=meta_data.get("ip_address"),
                 available_byte_size=meta_data.get("available_byte_size"),
                 rack_number=meta_data.get("rack_number"),
+                priority=meta_data.get("priority"),
                 signature=f"{signature}-{self.controller.ip_address}"
             ), previous_signature=signature)
 
             with self.DATABASE_LOCK:
                 data_node = DataNode.fetch_by_ip(meta_data.get("ip_address"), self.db)
                 if data_node is None:
-                    data_node = DataNode(db=self.db, ip_address=meta_data["ip_address"],
-                                         rack_number=meta_data.get("rack_number"),
-                                         available_byte_size=meta_data.get("available_byte_size"),
-                                         last_seen=monotonic())
+                    DataNode(db=self.db, ip_address=meta_data.get("ip_address"),
+                             rack_number=meta_data.get("rack_number"),
+                             available_byte_size=meta_data.get("available_byte_size"),
+                             last_seen=monotonic(), priority=meta_data.get("priority")).save()
+                    self.controller.update_name_node_ip_address(db=self.db)
                 else:
                     data_node.available_byte_size = meta_data.get("available_byte_size")
                     data_node.rack_number = meta_data.get("rack_number")
                     data_node.last_seen = monotonic()
-
-                data_node.save()
+                    data_node.save()
 
     def add_peer(self, message):
         ip_address = dict(parse.parse(INTRODUCE_PEER, message).named)["ip_address"]
@@ -365,9 +367,11 @@ class PeerRecvThread(Thread):
         meta_data = dict(parse.parse(CONFIRM_HANDSHAKE, handshake_confirmation).named)
         with self.DATABASE_LOCK:
             data_node = DataNode(db=self.db, ip_address=ip_address,
-                                 available_byte_size=meta_data["available_byte_size"],
-                                 rack_number=meta_data["rack_number"], last_seen=monotonic())
+                                 available_byte_size=meta_data.get("available_byte_size"),
+                                 rack_number=meta_data.get("rack_number"), priority=meta_data.get("priority"),
+                                 last_seen=monotonic())
             data_node.save()
+        self.controller.update_name_node_ip_address(db=self.db)
 
         if len(self.controller.peers) == 1:
             thread = PeerRecvThread(session=new_session, controller=self.controller)
@@ -377,8 +381,8 @@ class PeerRecvThread(Thread):
             self.session.transfer_data(STOP_FRIENDSHIP)
             self.session = new_session
             self.controller.peers[1 - self.controller.peers.index(self)].session.transfer_data(
-                UPDATE_DATA_NODE.encode(ip_address=data_node.ip_address, rack_number=data_node.rack_number,
-                                        available_byte_size=data_node.available_byte_size,
+                UPDATE_DATA_NODE.format(ip_address=data_node.ip_address, rack_number=data_node.rack_number,
+                                        available_byte_size=data_node.available_byte_size, priority=data_node.priority,
                                         signature=self.controller.ip_address))
 
         print("Thread ", [x.session.ip_address for x in self.controller.peers])
@@ -392,7 +396,12 @@ class PeerRecvThread(Thread):
         if data_node is not None:
             data_node.delete()
 
-        if len(self.controller.peers) == 0:
+        if self.controller.name_node_ip_address == ip_address:
+            self.controller.update_name_node_ip_address(db=self.db)
+            if not self.controller.is_name_node:
+                self.controller.peer_transmitter.transmit(NAME_NODE_DOWN)
+
+        if len(self.controller.peers) == 1:
             self.continues = False
             self.db.close()
             self.controller.peers.remove(self)

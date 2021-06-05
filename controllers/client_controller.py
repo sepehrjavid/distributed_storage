@@ -2,7 +2,6 @@ import ipaddress
 from multiprocessing import Process
 from multiprocessing.connection import Connection
 from threading import Thread
-from time import sleep
 
 import parse
 
@@ -13,7 +12,7 @@ from servers.broadcast_server import BroadcastServer
 from servers.data_node_server import DataNodeServer
 from singleton.singleton import Singleton
 from storage.storage import Storage
-from valid_messages import START_CLIENT_SERVER, DELETE_CHUNK, MESSAGE_SEPARATOR
+from valid_messages import START_CLIENT_SERVER, DELETE_CHUNK, MESSAGE_SEPARATOR, NAME_NODE_STATUS
 
 
 class ClientController(Process, metaclass=Singleton):
@@ -36,6 +35,7 @@ class ClientController(Process, metaclass=Singleton):
         self.broadcast_server = None
         self.data_node_server_thread = None
         self.peer_controller_message_handler_thread = None
+        self.is_name_node = False
 
     def update_config_file(self):
         with open(PeerController.CONFIG_FILE_PATH, "r") as config_file:
@@ -49,11 +49,9 @@ class ClientController(Process, metaclass=Singleton):
     def run(self):
         self.db_connection = MetaDatabase()
         while True:
-            if self.peer_controller_pipe.poll():
-                msg = self.peer_controller_pipe.recv()
-                if msg == START_CLIENT_SERVER:
-                    break
-            sleep(1)
+            msg = self.peer_controller_pipe.recv()
+            if msg == START_CLIENT_SERVER:
+                break
 
         self.storage = Storage(storage_path=self.storage_base_path,
                                current_data_node=DataNode.fetch_by_ip(ip_address=self.ip_address,
@@ -73,10 +71,11 @@ class ClientController(Process, metaclass=Singleton):
     def peer_controller_message_handler(self):
         db = MetaDatabase()
         while True:
-            if self.peer_controller_pipe.poll():
-                msg = self.peer_controller_pipe.recv()
-                command = msg.split(MESSAGE_SEPARATOR)[0]
-                if command == DELETE_CHUNK.split(MESSAGE_SEPARATOR)[0]:
-                    meta_data = dict(parse.parse(DELETE_CHUNK, msg).named)
-                    self.storage.remove_chunk_file(path=meta_data.get("path"), db=db)
-            sleep(3)
+            msg = self.peer_controller_pipe.recv()
+            command = msg.split(MESSAGE_SEPARATOR)[0]
+            if command == DELETE_CHUNK.split(MESSAGE_SEPARATOR)[0]:
+                meta_data = dict(parse.parse(DELETE_CHUNK, msg).named)
+                self.storage.remove_chunk_file(path=meta_data.get("path"), db=db)
+            if command == NAME_NODE_STATUS.split(MESSAGE_SEPARATOR)[0]:
+                meta_data = dict(parse.parse(NAME_NODE_STATUS, msg).named)
+                self.is_name_node = eval(meta_data.get("status"))

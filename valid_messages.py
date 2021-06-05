@@ -41,7 +41,7 @@ Peer-Peer Messages
 
 JOIN_NETWORK = "join"
 INTRODUCE_PEER = "intro-{ip_address}"
-CONFIRM_HANDSHAKE = "confirm-{available_byte_size}-{rack_number}"
+CONFIRM_HANDSHAKE = "confirm-{available_byte_size}-{rack_number}-{priority}"
 STOP_FRIENDSHIP = "stop_fr"
 RESPOND_TO_BROADCAST = "broadcast"
 RESPOND_TO_INTRODUCTION = "introduction"
@@ -52,6 +52,7 @@ ABORT_JOIN = "abrt"
 PEER_FAILURE = "failpeer-{failed_address}-{reporter_address}"
 RESPOND_PEER_FAILURE = "rspndfailpeer-{failed_address}-{self_ip_address}-{reporter_address}"
 REPLICATE_CHUNK = "rep-{create_chunk_message}"
+NAME_NODE_DOWN = "namenodedown"
 
 """
 General Messages
@@ -64,7 +65,7 @@ REJECT = "reject"
 Metadata Events
 """
 
-UPDATE_DATA_NODE = "nwnd-{ip_address}-{available_byte_size}-{rack_number}-{signature}"
+UPDATE_DATA_NODE = "nwnd-{ip_address}-{available_byte_size}-{rack_number}-{priority}-{signature}"
 NEW_FILE = "nwfl-{title}-{extension}-{username}-{path}-{sequence_num}-{signature}"
 NEW_USER = "nwusr-{username}-{password}-{signature}"
 NEW_CHUNK = "nwchnk-{ip_address}-{sequence}-{chunk_size}-{path}-{title}-{extension}-{destination_file_path}-{signature}"
@@ -80,3 +81,4 @@ Inter-Process Communication
 
 START_CLIENT_SERVER = "start"
 DELETE_CHUNK = "delc-{path}"
+NAME_NODE_STATUS = "name_node-{status}"

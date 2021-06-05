@@ -1,6 +1,7 @@
 from broadcast.servers import SimpleBroadcastServer
-from valid_messages import JOIN_NETWORK, UNBLOCK_QUEUEING, BLOCK_QUEUEING, PEER_FAILURE, MESSAGE_SEPARATOR, \
-    RESPOND_PEER_FAILURE
+from meta_data.models.data_node import DataNode
+from valid_messages import (JOIN_NETWORK, UNBLOCK_QUEUEING, BLOCK_QUEUEING, PEER_FAILURE, MESSAGE_SEPARATOR,
+                            RESPOND_PEER_FAILURE, NAME_NODE_DOWN)
 from singleton.singleton import Singleton
 
 
@@ -24,6 +25,13 @@ class PeerBroadcastServer(SimpleBroadcastServer, metaclass=Singleton):
         elif data.decode() == BLOCK_QUEUEING:
             self.peer_controller.lock_queue()
             print("blocked")
+        elif data.decode() == NAME_NODE_DOWN:
+            print("name node down")
+            name_node = DataNode.fetch_by_ip(ip_address=self.peer_controller.name_node_ip_address,
+                                             db=self.peer_controller.db_connection)
+            if name_node is not None:
+                name_node.delete()
+            self.peer_controller.update_name_node_ip_address(db=self.peer_controller.db_connection)
         elif data.decode().split(MESSAGE_SEPARATOR)[0] == PEER_FAILURE.split(MESSAGE_SEPARATOR)[0]:
             self.peer_controller.respond_to_peer_failure(data.decode())
             print("data node failure detected")
