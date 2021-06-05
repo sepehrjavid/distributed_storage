@@ -51,14 +51,6 @@ class PeerController(Process, metaclass=Singleton):
         self.broadcast_server = PeerBroadcastServer(broadcast_address=self.broadcast_address, peer_controller=self)
         self.name_node_ip_address = None
 
-    @property
-    def is_name_node(self):
-        return self.name_node_ip_address == self.ip_address
-
-    def update_name_node_ip_address(self, db: MetaDatabase):
-        self.name_node_ip_address = self.find_name_node(db=db)
-        self.update_client_controller_is_name_node()
-
     def update_config_file(self):
         with open(self.CONFIG_FILE_PATH, "r") as config_file:
             config = config_file.read().replace('\n', '').replace('\t', '').replace(' ', '')
@@ -67,6 +59,15 @@ class PeerController(Process, metaclass=Singleton):
             config = config[:-2] + config[-1]
 
         self.config = self.parse_config(config)
+
+    @property
+    def is_name_node(self):
+        return self.name_node_ip_address == self.ip_address
+
+    def update_name_node_ip_address(self, db: MetaDatabase):
+        self.name_node_ip_address = self.find_name_node(db=db)
+        self.update_client_controller_is_name_node()
+        print(f"Name node updated to {self.name_node_ip_address}")
 
     def update_client_controller_is_name_node(self):
         self.client_controller_pipe.send(NAME_NODE_STATUS.format(status=self.is_name_node))

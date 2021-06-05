@@ -14,7 +14,7 @@ from meta_data.models.user import User
 from valid_messages import (CONFIRM_HANDSHAKE, STOP_FRIENDSHIP, RESPOND_TO_INTRODUCTION, ACCEPT, INTRODUCE_PEER,
                             MESSAGE_SEPARATOR, SEND_DB, UPDATE_DATA_NODE, UNBLOCK_QUEUEING, START_CLIENT_SERVER,
                             NEW_USER, NEW_FILE, NEW_CHUNK, NEW_DIR, REMOVE_FILE, NEW_FILE_PERMISSION,
-                            NEW_DIR_PERMISSION, DELETE_CHUNK, REMOVE_DATA_NODE, PEER_FAILURE)
+                            NEW_DIR_PERMISSION, DELETE_CHUNK, REMOVE_DATA_NODE, PEER_FAILURE, NAME_NODE_DOWN)
 from session.exceptions import PeerTimeOutException
 from session.sessions import SimpleSession, FileSession, EncryptedSession
 
@@ -395,6 +395,11 @@ class PeerRecvThread(Thread):
         data_node = DataNode.fetch_by_ip(ip_address=ip_address, db=self.db)
         if data_node is not None:
             data_node.delete()
+
+        if self.controller.name_node_ip_address == ip_address:
+            self.controller.update_name_node_ip_address(db=self.db)
+            if not self.controller.is_name_node:
+                self.controller.peer_transmitter.transmit(NAME_NODE_DOWN)
 
         if len(self.controller.peers) == 0:
             self.continues = False
