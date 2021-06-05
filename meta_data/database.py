@@ -55,6 +55,7 @@ class MetaDatabase:
                             id INTEGER PRIMARY KEY AUTOINCREMENT,
                             ip_address VARCHAR(15) NOT NULL UNIQUE,
                             rack_number INTEGER NOT NULL,
+                            priority INTEGER NOT NULL,
                             available_byte_size INTEGER NOT NULL,
                             last_seen VARCHAR(17) NOT NULL DEFAULT 0
                                 );""")

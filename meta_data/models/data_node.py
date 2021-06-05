@@ -9,11 +9,13 @@ class DataNode:
         self.rack_number = kwargs.get("rack_number")
         self.available_byte_size = kwargs.get("available_byte_size")
         self.last_seen = kwargs.get("last_seen")
+        self.priority = kwargs.get("priority")
 
     def __create(self):
         self.id = self.db.create(
-            "INSERT INTO data_node (ip_address, rack_number, available_byte_size, last_seen) VALUES (?,?,?,?);",
-            self.ip_address, self.rack_number, self.available_byte_size, self.last_seen)
+            """INSERT INTO data_node (ip_address, rack_number, available_byte_size, last_seen, priority) 
+            VALUES (?,?,?,?,?);""",
+            self.ip_address, self.rack_number, self.available_byte_size, self.last_seen, self.priority)
 
     def __update(self):
         self.db.execute("UPDATE data_node SET available_byte_size=?, last_seen=? WHERE id=?",
@@ -40,8 +42,10 @@ class DataNode:
 
         data_nodes = []
         for data_node in sql_result:
+            print(data_node)
             data_nodes.append(DataNode(db=db, id=data_node[0], ip_address=data_node[1], rack_number=data_node[2],
-                                       available_byte_size=data_node[3], last_seen=float(data_node[4])))
+                                       priority=data_node[3], available_byte_size=data_node[4],
+                                       last_seen=float(data_node[5])))
 
         return data_nodes
 
@@ -54,7 +58,7 @@ class DataNode:
 
         data_node = sql_result[0]
         return DataNode(db=db, id=data_node[0], ip_address=data_node[1], rack_number=data_node[2],
-                        available_byte_size=data_node[3], last_seen=float(data_node[4]))
+                        priority=data_node[3], available_byte_size=data_node[4], last_seen=float(data_node[5]))
 
     @staticmethod
     def fetch_by_id(id, db: MetaDatabase):
@@ -65,4 +69,4 @@ class DataNode:
 
         data_node = sql_result[0]
         return DataNode(db=db, id=data_node[0], ip_address=data_node[1], rack_number=data_node[2],
-                        available_byte_size=data_node[3], last_seen=float(data_node[4]))
+                        priority=data_node[3], available_byte_size=data_node[4], last_seen=float(data_node[5]))

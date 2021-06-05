@@ -330,16 +330,17 @@ class PeerRecvThread(Thread):
                 ip_address=meta_data.get("ip_address"),
                 available_byte_size=meta_data.get("available_byte_size"),
                 rack_number=meta_data.get("rack_number"),
+                priority=meta_data.get("priority"),
                 signature=f"{signature}-{self.controller.ip_address}"
             ), previous_signature=signature)
 
             with self.DATABASE_LOCK:
                 data_node = DataNode.fetch_by_ip(meta_data.get("ip_address"), self.db)
                 if data_node is None:
-                    data_node = DataNode(db=self.db, ip_address=meta_data["ip_address"],
+                    data_node = DataNode(db=self.db, ip_address=meta_data.get("ip_address"),
                                          rack_number=meta_data.get("rack_number"),
                                          available_byte_size=meta_data.get("available_byte_size"),
-                                         last_seen=monotonic())
+                                         last_seen=monotonic(), priority=meta_data.get("priority"))
                 else:
                     data_node.available_byte_size = meta_data.get("available_byte_size")
                     data_node.rack_number = meta_data.get("rack_number")
@@ -365,8 +366,9 @@ class PeerRecvThread(Thread):
         meta_data = dict(parse.parse(CONFIRM_HANDSHAKE, handshake_confirmation).named)
         with self.DATABASE_LOCK:
             data_node = DataNode(db=self.db, ip_address=ip_address,
-                                 available_byte_size=meta_data["available_byte_size"],
-                                 rack_number=meta_data["rack_number"], last_seen=monotonic())
+                                 available_byte_size=meta_data.get("available_byte_size"),
+                                 rack_number=meta_data.get("rack_number"), priority=meta_data.get("priority"),
+                                 last_seen=monotonic())
             data_node.save()
 
         if len(self.controller.peers) == 1:
@@ -377,8 +379,8 @@ class PeerRecvThread(Thread):
             self.session.transfer_data(STOP_FRIENDSHIP)
             self.session = new_session
             self.controller.peers[1 - self.controller.peers.index(self)].session.transfer_data(
-                UPDATE_DATA_NODE.encode(ip_address=data_node.ip_address, rack_number=data_node.rack_number,
-                                        available_byte_size=data_node.available_byte_size,
+                UPDATE_DATA_NODE.format(ip_address=data_node.ip_address, rack_number=data_node.rack_number,
+                                        available_byte_size=data_node.available_byte_size, priority=data_node.priority,
                                         signature=self.controller.ip_address))
 
         print("Thread ", [x.session.ip_address for x in self.controller.peers])
