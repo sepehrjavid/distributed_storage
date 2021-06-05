@@ -73,6 +73,8 @@ class BroadcastServer(SimpleBroadcastServer, metaclass=Singleton):
 
 
 class ClientThread(Thread):
+    DATABASE_LOCK = Lock()
+
     def __init__(self, client_data, storage, *args, **kwargs):
         super(ClientThread, self).__init__(*args, **kwargs)
         self.client_data = client_data
@@ -365,21 +367,21 @@ class ClientThread(Thread):
         username = meta_data.get("username")
         password = meta_data.get("password")
 
-        user = User.fetch_by_username(username=username, db=self.db_connection)
-
-        if user is None:
-            user = User(db=self.db_connection, username=username, password=password)
-            user.save()
-            main_directory = Directory(db=self.db_connection, title=Directory.MAIN_DIR_NAME)
-            main_directory.save()
-            permission = Permission(db=self.db_connection, directory_id=main_directory.id, user_id=user.id,
-                                    perm=Permission.OWNER)
-            permission.save()
-            self.storage.controller.inform_modification(NEW_USER.format(username=username, password=password,
-                                                                        signature=self.ip_address))
-            self.session.transfer_data(ACCEPT)
-        else:
-            self.session.transfer_data(DUPLICATE_ACCOUNT)
+        with self.DATABASE_LOCK:
+            user = User.fetch_by_username(username=username, db=self.db_connection)
+            if user is None:
+                user = User(db=self.db_connection, username=username, password=password)
+                user.save()
+                main_directory = Directory(db=self.db_connection, title=Directory.MAIN_DIR_NAME)
+                main_directory.save()
+                permission = Permission(db=self.db_connection, directory_id=main_directory.id, user_id=user.id,
+                                        perm=Permission.OWNER)
+                permission.save()
+                self.storage.controller.inform_modification(NEW_USER.format(username=username, password=password,
+                                                                            signature=self.ip_address))
+                self.session.transfer_data(ACCEPT)
+            else:
+                self.session.transfer_data(DUPLICATE_ACCOUNT)
 
         self.session.close()
 
