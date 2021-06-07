@@ -97,6 +97,9 @@ class Storage(metaclass=Singleton):
         other_data_nodes = [x for x in all_data_nodes if x.id != self.current_data_node.id]
         racks = {}
 
+        if len(other_data_nodes) == 0:
+            return []
+
         for data_node in other_data_nodes:
             if data_node.rack_number not in racks:
                 racks[data_node.rack_number] = []
