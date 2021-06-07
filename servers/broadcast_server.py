@@ -74,6 +74,7 @@ class BroadcastServer(SimpleBroadcastServer, metaclass=Singleton):
 
 class ClientThread(Thread):
     DATABASE_LOCK = Lock()
+    DATA_NODE_ASSIGNMENT_LOCK = Lock()
 
     def __init__(self, client_data, storage, *args, **kwargs):
         super(ClientThread, self).__init__(*args, **kwargs)
@@ -429,8 +430,9 @@ class ClientThread(Thread):
             self.session.close()
             return
 
-        data_nodes = self.storage.choose_data_node_to_save(file_size=int(meta_data.get("total_size")),
-                                                           db=self.db_connection)
+        with self.DATA_NODE_ASSIGNMENT_LOCK:
+            data_nodes = self.storage.choose_data_node_to_save(file_size=int(meta_data.get("total_size")),
+                                                               db=self.db_connection)
 
         if data_nodes is None:
             self.session.transfer_data(OUT_OF_SPACE)

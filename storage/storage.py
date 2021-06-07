@@ -54,6 +54,9 @@ class Storage(metaclass=Singleton):
                 data_node.available_byte_size = 0
             i += 1
 
+        for d_node in [x[1] for x in assigned_nodes]:
+            d_node.save()
+
         return assigned_nodes
 
     def get_new_file_path(self):
