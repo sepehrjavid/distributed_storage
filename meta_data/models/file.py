@@ -34,7 +34,10 @@ class File:
     @property
     def directory(self):
         from meta_data.models.directory import Directory
-        return Directory.fetch_by_id(self.directory_id, self.db)
+        result = Directory.fetch_by_id(self.directory_id, self.db)
+        if result is None:
+            return []
+        return result
 
     @property
     def chunks(self):
