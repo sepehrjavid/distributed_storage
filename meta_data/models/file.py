@@ -34,15 +34,15 @@ class File:
     @property
     def directory(self):
         from meta_data.models.directory import Directory
-        result = Directory.fetch_by_id(self.directory_id, self.db)
-        if result is None:
-            return []
-        return result
+        return Directory.fetch_by_id(self.directory_id, self.db)
 
     @property
     def chunks(self):
         from meta_data.models.chunk import Chunk
-        return Chunk.fetch_by_file_id(file_id=self.id, db=self.db)
+        result = Chunk.fetch_by_file_id(file_id=self.id, db=self.db)
+        if result is None:
+            return []
+        return result
 
     def get_user_permission(self, username):
         result = self.db.fetch("""SELECT permission.perm FROM permission INNER JOIN file f ON 
