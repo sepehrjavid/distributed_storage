@@ -34,30 +34,34 @@ class Storage(metaclass=Singleton):
         if sum([x.available_byte_size for x in all_nodes]) < file_size:
             return None
 
-        assigned_nodes = []
+        chunk_list = []
+        assigned_nodes = set()
         i = 0
         bytes_assigned = 0
         while bytes_assigned < file_size:
             data_node = all_nodes[i % len(all_nodes)]
             if (file_size - bytes_assigned) >= self.CHUNK_SIZE and data_node.available_byte_size >= self.CHUNK_SIZE:
-                assigned_nodes.append((self.CHUNK_SIZE, data_node.ip_address))
+                chunk_list.append((self.CHUNK_SIZE, data_node.ip_address))
+                assigned_nodes.add(data_node)
                 bytes_assigned += self.CHUNK_SIZE
                 data_node.available_byte_size -= self.CHUNK_SIZE
             elif (file_size - bytes_assigned) < self.CHUNK_SIZE and data_node.available_byte_size >= (
                     file_size - bytes_assigned):
-                assigned_nodes.append((file_size - bytes_assigned, data_node.ip_address))
+                chunk_list.append((file_size - bytes_assigned, data_node.ip_address))
+                assigned_nodes.add(data_node)
                 bytes_assigned += (file_size - bytes_assigned)
                 data_node.available_byte_size -= (file_size - bytes_assigned)
             else:
-                assigned_nodes.append((data_node.available_byte_size, data_node.ip_address))
+                chunk_list.append((data_node.available_byte_size, data_node.ip_address))
+                assigned_nodes.add(data_node)
                 bytes_assigned += data_node.available_byte_size
                 data_node.available_byte_size = 0
             i += 1
 
-        for d_node in [x[1] for x in assigned_nodes]:
+        for d_node in assigned_nodes:
             d_node.save()
 
-        return assigned_nodes
+        return chunk_list
 
     def get_new_file_path(self):
         filepath = self.storage_path + str(uuid.uuid4()).replace(MESSAGE_SEPARATOR, "_")
