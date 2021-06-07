@@ -1,3 +1,5 @@
+import parse
+
 from broadcast.servers import SimpleBroadcastServer
 from meta_data.models.data_node import DataNode
 from valid_messages import (JOIN_NETWORK, UNBLOCK_QUEUEING, BLOCK_QUEUEING, PEER_FAILURE, MESSAGE_SEPARATOR,
@@ -27,7 +29,8 @@ class PeerBroadcastServer(SimpleBroadcastServer, metaclass=Singleton):
             print("blocked")
         elif data.decode() == NAME_NODE_DOWN:
             print("name node down")
-            name_node = DataNode.fetch_by_ip(ip_address=self.peer_controller.name_node_ip_address,
+            meta_data = dict(parse.parse(NAME_NODE_DOWN, data.decode()).named)
+            name_node = DataNode.fetch_by_ip(ip_address=meta_data.get("name_node_address"),
                                              db=self.peer_controller.db_connection)
             if name_node is not None:
                 name_node.delete()

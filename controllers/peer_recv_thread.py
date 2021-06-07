@@ -399,7 +399,7 @@ class PeerRecvThread(Thread):
         if self.controller.name_node_ip_address == ip_address:
             self.controller.update_name_node_ip_address(db=self.db)
             if not self.controller.is_name_node:
-                self.controller.peer_transmitter.transmit(NAME_NODE_DOWN)
+                self.controller.peer_transmitter.transmit(NAME_NODE_DOWN.format(name_node_address=ip_address))
 
         if len(self.controller.peers) == 1:
             self.continues = False
