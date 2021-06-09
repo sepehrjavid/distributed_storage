@@ -24,7 +24,7 @@ from singleton.singleton import Singleton
 
 class BroadcastServer(SimpleBroadcastServer, metaclass=Singleton):
     MAXIMUM_CLIENT_HANDLE_TIME = 4 * 60
-    CONTROLLER_INTERVAL = 5
+    CONTROLLER_INTERVAL = 10
     BROADCAST_SERVER_PORT_NUMBER = 54222
     CLIENT_PORT_NUMBER = BROADCAST_SERVER_PORT_NUMBER
 
