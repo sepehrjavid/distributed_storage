@@ -20,14 +20,15 @@ from session.sessions import EncryptedSession, FileSession
 class ClientActions:
     CONFIG_FILE_PATH = "/Users/sepehrjavid/Desktop/distributed_storage/client/dfs.conf"
     DATA_NODE_NETWORK_ADDRESS = "data_node_network"
-    MANDATORY_FIELDS = [DATA_NODE_NETWORK_ADDRESS]
+    CLIENT_ADDRESS = "ip_address"
+    MANDATORY_FIELDS = [DATA_NODE_NETWORK_ADDRESS, CLIENT_ADDRESS]
     SOCKET_ACCEPT_TIMEOUT = 2
 
-    def __init__(self, ip_address):
+    def __init__(self):
         self.username = None
         self.configuration = None
         self.update_config_file()
-        self.ip_address = ip_address
+        self.ip_address = self.configuration.get(self.CLIENT_ADDRESS)
         self.received_seq = 0
         self.write_chunk_condition = Condition()
 

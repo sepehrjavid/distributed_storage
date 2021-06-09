@@ -14,9 +14,8 @@ class Main:
     GRANT_FILE_PERM = "6"
     EXIT_COMMAND = "7"
 
-    def __init__(self, ip_address):
-        self.ip_address = ip_address
-        self.client_actions = ClientActions(ip_address)
+    def __init__(self):
+        self.client_actions = ClientActions()
 
     def run(self):
         while True:
@@ -60,5 +59,5 @@ class Main:
 
 
 if __name__ == "__main__":
-    program = Main("192.168.1.11")
+    program = Main()
     program.run()
