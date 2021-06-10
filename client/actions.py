@@ -4,7 +4,7 @@ import socket
 from threading import Thread, Condition
 
 from broadcast.transmitters import SimpleTransmitter
-from client.exceptions import InvalidClientActionConfigFile
+from client.exceptions import InvalidClientActionConfigFile, FileSystemDown
 import ipaddress
 import os
 
@@ -22,7 +22,8 @@ class ClientActions:
     DATA_NODE_NETWORK_ADDRESS = "data_node_network"
     CLIENT_ADDRESS = "ip_address"
     MANDATORY_FIELDS = [DATA_NODE_NETWORK_ADDRESS, CLIENT_ADDRESS]
-    SOCKET_ACCEPT_TIMEOUT = 2
+    SOCKET_ACCEPT_TIMEOUT = 3
+    TRY_SERVICE_LIMIT = 3
 
     def __init__(self):
         self.username = None
@@ -80,12 +81,16 @@ class ClientActions:
         server_socket.listen(5)
         server_socket.settimeout(self.SOCKET_ACCEPT_TIMEOUT)
 
+        try_number = 0
         transmitter.transmit(message)
         while True:
             try:
                 client_socket, addr = server_socket.accept()
                 break
             except socket.timeout:
+                try_number += 1
+                if try_number == self.TRY_SERVICE_LIMIT:
+                    raise FileSystemDown()
                 transmitter.transmit(message)
 
         print(f"Served by: {addr}")
