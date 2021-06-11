@@ -161,10 +161,6 @@ class PeerController(Process, metaclass=Singleton):
         self.update_name_node_ip_address(db=self.db_connection)
 
         if len(self.peers) > 1:
-            self.peers[1].session.transfer_data(
-                UPDATE_DATA_NODE.format(ip_address=data_node.ip_address, rack_number=data_node.rack_number,
-                                        priority=data_node.priority, available_byte_size=data_node.available_byte_size,
-                                        signature=self.ip_address))
             lost_peer = self.peers.pop(0)
             lost_peer.join()
 
