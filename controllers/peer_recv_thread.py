@@ -21,7 +21,7 @@ from session.sessions import SimpleSession, FileSession, EncryptedSession
 
 class PeerRecvThread(Thread):
     DATABASE_LOCK = Lock()
-    RECOVERY_DATA_NODE_CONNECTION_TIMEOUT = 5
+    RECOVERY_DATA_NODE_CONNECTION_TIMEOUT = 8
 
     def __init__(self, session: EncryptedSession, controller, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -428,9 +428,17 @@ class PeerRecvThread(Thread):
 
                 self.failure_help_found.wait()
                 new_ip_address = self.thread_inbox
+                print(new_ip_address)
 
                 if new_ip_address > self.controller.ip_address:
-                    self.session = EncryptedSession(ip_address=new_ip_address, port_number=self.controller.PORT_NUMBER)
+                    try:
+                        self.session = EncryptedSession(ip_address=new_ip_address,
+                                                        port_number=self.controller.PORT_NUMBER)
+                    except PeerTimeOutException:
+                        self.continues = False
+                        self.db.close()
+                        self.controller.peers.remove(self)
+                        return
                     self.failed = False
                 else:
                     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
