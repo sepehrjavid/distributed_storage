@@ -16,7 +16,7 @@ from meta_data.models.data_node import DataNode
 from servers.peer_server import PeerBroadcastServer
 from valid_messages import (INTRODUCE_PEER, CONFIRM_HANDSHAKE, MESSAGE_SEPARATOR, NULL, RESPOND_TO_BROADCAST,
                             REJECT, JOIN_NETWORK, ACCEPT, RESPOND_TO_INTRODUCTION, BLOCK_QUEUEING,
-                            UNBLOCK_QUEUEING, ABORT_JOIN, UPDATE_DATA_NODE, SEND_DB, START_CLIENT_SERVER, PEER_FAILURE,
+                            UNBLOCK_QUEUEING, ABORT_JOIN, SEND_DB, START_CLIENT_SERVER, PEER_FAILURE,
                             RESPOND_PEER_FAILURE, NAME_NODE_STATUS)
 from session.exceptions import PeerTimeOutException
 from session.sessions import SimpleSession, FileSession
@@ -235,6 +235,7 @@ class PeerController(Process, metaclass=Singleton):
 
         peer_session.transfer_data(confirmation_message)
         suggested_peer_session.transfer_data(confirmation_message)
+        server_socket.close()
         print("confirmed both peers")
         return [peer_session, suggested_peer_session]
 
