@@ -407,6 +407,7 @@ class PeerRecvThread(Thread):
             data_node.delete()
 
         if self.controller.name_node_ip_address == ip_address:
+            print("Advertise namenode down")
             self.controller.peer_transmitter.transmit(NAME_NODE_DOWN.format(name_node_address=ip_address))
             self.controller.update_name_node_ip_address(db=self.db)
 
@@ -450,7 +451,7 @@ class PeerRecvThread(Thread):
                         client_socket, addr = server_socket.accept()
                         while addr[0] != new_ip_address:
                             client_socket, addr = server_socket.accept()
-                        self.session = EncryptedSession(input_socket=client_socket, is_server=True)
+                        self.session = EncryptedSession(input_socket=client_socket, is_server=True, ip_address=addr[0])
                         self.failed = False
                         self.controller_inbox = None
                     except socket.timeout:
