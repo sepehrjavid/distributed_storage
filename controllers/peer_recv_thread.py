@@ -429,7 +429,7 @@ class PeerRecvThread(Thread):
 
                 self.failure_help_found.wait()
                 new_ip_address = self.thread_inbox
-                print(new_ip_address)
+                print(f"New peer address {new_ip_address}")
 
                 if new_ip_address > self.controller.ip_address:
                     try:

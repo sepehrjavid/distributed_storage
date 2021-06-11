@@ -27,7 +27,7 @@ class PeerBroadcastServer(SimpleBroadcastServer, metaclass=Singleton):
         elif data.decode() == BLOCK_QUEUEING:
             self.peer_controller.lock_queue()
             print("blocked")
-        elif data.decode() == NAME_NODE_DOWN:
+        elif data.decode().split(MESSAGE_SEPARATOR)[0] == NAME_NODE_DOWN.split(MESSAGE_SEPARATOR)[0]:
             print("name node down")
             meta_data = dict(parse.parse(NAME_NODE_DOWN, data.decode()).named)
             name_node = DataNode.fetch_by_ip(ip_address=meta_data.get("name_node_address"),
