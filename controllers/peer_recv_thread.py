@@ -318,7 +318,6 @@ class PeerRecvThread(Thread):
     def receive_db(self):
         file_session = FileSession()
         file_session.receive_file(MetaDatabase.DATABASE_PATH, self.session)
-        self.controller.update_name_node_ip_address(db=self.db)
         self.controller.client_controller_pipe.send(START_CLIENT_SERVER)
         self.controller.inform_next_node(UPDATE_DATA_NODE.format(
             ip_address=self.controller.ip_address,
@@ -329,6 +328,7 @@ class PeerRecvThread(Thread):
         ))
         self.controller.peer_transmitter.transmit(UNBLOCK_QUEUEING)
         self.controller.release_queue_lock()
+        self.controller.update_name_node_ip_address(db=self.db)
 
     def update_data_node(self, message):
         meta_data = dict(parse.parse(UPDATE_DATA_NODE, message).named)
@@ -417,7 +417,7 @@ class PeerRecvThread(Thread):
         else:
             data_node_count = len(DataNode.fetch_all(db=self.db))
             if data_node_count > 2:
-                self.controller.peers[0].session.transfer_data(
+                self.controller.peers[1 - self.controller.peers.index(self)].session.transfer_data(
                     REMOVE_DATA_NODE.format(ip_address=ip_address,
                                             signature=self.controller.ip_address))
 
