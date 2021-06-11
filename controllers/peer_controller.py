@@ -180,6 +180,7 @@ class PeerController(Process, metaclass=Singleton):
                                                         rack_number=self.rack_number)
 
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server_socket.bind((self.ip_address, PeerController.PORT_NUMBER))
         server_socket.listen(2)
         server_socket.settimeout(self.SOCKET_ACCEPT_TIMEOUT)

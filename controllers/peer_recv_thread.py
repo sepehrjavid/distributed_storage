@@ -407,7 +407,7 @@ class PeerRecvThread(Thread):
             data_node.delete()
 
         if self.controller.name_node_ip_address == ip_address:
-            print("Advertise namenode down")
+            print("Advertise Namenode down")
             self.controller.peer_transmitter.transmit(NAME_NODE_DOWN.format(name_node_address=ip_address))
             self.controller.update_name_node_ip_address(db=self.db)
 
@@ -443,6 +443,7 @@ class PeerRecvThread(Thread):
                     self.failed = False
                 else:
                     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                     server_socket.bind((self.controller.ip_address, self.controller.PORT_NUMBER))
                     server_socket.listen(2)
                     server_socket.settimeout(self.RECOVERY_DATA_NODE_CONNECTION_TIMEOUT)
@@ -452,6 +453,7 @@ class PeerRecvThread(Thread):
                         while addr[0] != new_ip_address:
                             client_socket, addr = server_socket.accept()
                         self.session = EncryptedSession(input_socket=client_socket, is_server=True, ip_address=addr[0])
+                        server_socket.close()
                         self.failed = False
                         self.controller_inbox = None
                     except socket.timeout:
