@@ -432,15 +432,20 @@ class PeerRecvThread(Thread):
                 print(f"New peer address {new_ip_address}")
 
                 if new_ip_address > self.controller.ip_address:
-                    try:
-                        self.session = EncryptedSession(ip_address=new_ip_address,
-                                                        port_number=self.controller.PORT_NUMBER)
-                    except PeerTimeOutException:
-                        self.continues = False
-                        self.db.close()
-                        self.controller.peers.remove(self)
-                        return
-                    self.failed = False
+                    try_number = 0
+
+                    while True:
+                        try:
+                            self.session = EncryptedSession(ip_address=new_ip_address,
+                                                            port_number=self.controller.PORT_NUMBER)
+                            self.failed = False
+                        except PeerTimeOutException:
+                            try_number += 1
+                            if try_number == 3:
+                                self.continues = False
+                                self.db.close()
+                                self.controller.peers.remove(self)
+
                 else:
                     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
