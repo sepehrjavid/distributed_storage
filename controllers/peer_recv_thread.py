@@ -439,12 +439,14 @@ class PeerRecvThread(Thread):
                             self.session = EncryptedSession(ip_address=new_ip_address,
                                                             port_number=self.controller.PORT_NUMBER)
                             self.failed = False
+                            break
                         except PeerTimeOutException:
                             try_number += 1
                             if try_number == 3:
                                 self.continues = False
                                 self.db.close()
                                 self.controller.peers.remove(self)
+                                break
 
                 else:
                     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -460,7 +462,6 @@ class PeerRecvThread(Thread):
                         self.session = EncryptedSession(input_socket=client_socket, is_server=True, ip_address=addr[0])
                         server_socket.close()
                         self.failed = False
-                        self.controller_inbox = None
                     except socket.timeout:
                         self.continues = False
                         self.db.close()
