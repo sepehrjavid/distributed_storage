@@ -194,6 +194,7 @@ class FileSession:
                 if replicate:
                     with self.replication_storage_lock:
                         self.replication_storage.append(data)
+                        self.replicate_thread_condition.notifyAll()
                 received += len(data)
 
         with self.replication_storage_lock:
