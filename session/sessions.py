@@ -199,6 +199,7 @@ class FileSession:
 
         with self.replication_storage_lock:
             self.replication_storage.append(None)  # EOF
+            self.replicate_thread_condition.notifyAll()
 
         for thread in replication_threads:
             thread.join()
